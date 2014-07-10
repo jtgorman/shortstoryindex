@@ -1,0 +1,4 @@
+shortstoryindex
+===============
+
+Short Story Index
