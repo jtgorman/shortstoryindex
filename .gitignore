@@ -1,0 +1,12 @@
+# Config files
+#####
+*.cfg
+*.config
+
+# backup files (emacs)
+#####
+*~
+
+# data folder
+#####
+data
