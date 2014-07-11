@@ -3,6 +3,10 @@
 *.cfg
 *.config
 
+# log files
+####
+*.log
+
 # backup files (emacs)
 #####
 *~

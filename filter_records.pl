@@ -60,7 +60,7 @@ if( -e $last_record_id_filepath ) {
 }
     
 
-open my $short_story_records_h, '>', 'short_story_records.marc' or die "Couldn't open short_story_records.marc" ;
+open my $short_story_records_h, '>>', 'short_story_records.marc' or die "Couldn't open short_story_records.marc" ;
 
 binmode $short_story_records_h ;
 
@@ -72,7 +72,7 @@ my $id = -1 ;
 # system for picking records
 RECORD: while ( my $marc = $batch->next() ) {
 
-    $id = $marc->field('001')->data() ;
+    $id = get_id( $marc ) ;
 
     # leader 35 to 37 has language of material
     # eng or ..
@@ -123,12 +123,12 @@ RECORD: while ( my $marc = $batch->next() ) {
         
         redo RECORD ;
     } elsif (lc($key) eq 'y') {
-        $logger->debug("$id putting in file by manual input") ;
+        $logger->debug("ACCEPTED $id putting in file by manual input") ;
         print $short_story_records_h $marc->as_usmarc() ;
     } elsif (lc($key) eq 's') {
         clean_up( $id ) ;
     } elsif (lc($key) eq 'n') {
-        $logger->debug("$id excluding by manual input") ;
+        $logger->debug("REJECT $id excluding by manual input") ;
     }
 } # END OF RECORD loop
     #print "no immediate qualifiers for short stories\n" ;
@@ -138,14 +138,14 @@ clean_up( $id ) ;
 # Check for possible reasons to skip/reject this record
 sub reject_record {
     my $marc = shift ;
-    my $id = $marc->field('001')->data() ;
+    my $id = get_id( $marc ) ;
+    
 
     # For this particular batch that's
     # already in order (LoC from Scriblio)
     # probably could have database of lookups
     # in memory for an unordered set
-    if(   defined( $marc->field('001') ) 
-        && $marc->field('001')->data() < $last_record_id ) {
+    if(  $id < $last_record_id ) {
         
         return 1 ;
     }
@@ -154,7 +154,7 @@ sub reject_record {
         # due to weirdness...
         my $lang_code = substr($marc->field('008')->data(),35,3)  ; 
         if( $lang_code ne 'eng' && $lang_code ne ' 'x3) {
-            $logger->info("$id For now only dealing with English material - language code was " . $marc->field('008'),35,3)  ;
+            $logger->info("REJECT $id For now only dealing with English material - language code was " . substr($marc->field('008')->data(),35,3) )  ;
             
             return 1 ;
             
@@ -168,7 +168,7 @@ sub reject_record {
     }
     
     if ( !defined($marc->field('245') )  ) {
-        $logger->info( "$id no 245, skipping \n" ) ;
+        $logger->info( "REJECT $id no 245, skipping \n" ) ;
         return 1 ;
     }
     
@@ -178,10 +178,45 @@ sub reject_record {
     }
     if (  defined($marc->field('008') )
                    && substr($marc->field('008')->data(),33,1) =~ /[0defhimps]/ ) {
-        $logger->info("$id Spotted 008/33 w/ a specified format that is not short story") ;
+        $logger->info("REJECT $id Spotted 008/33 w/ a specified format that is not short story") ;
         return 1 ;
     }
 
+    # ok, so if a 505 exists,
+    # does it actually have more than 3 elements?
+    # that will rule out some of the "Two novels in one" works
+
+    # (need to also check the 500s)...
+
+    if(defined( $marc->field('505') ) || defined( $marc->field('500') ) ) {
+
+        my $count_works = 0;
+
+        no warnings 'uninitialized' ;
+        foreach my $contents_field ( ($marc->field('505'), $marc->field('500') ) ) {
+
+            # a lot of 505 w/ second indicator
+            # 0 don't use subfield $t
+            if(   $contents_field->tag() eq '505'
+               && $contents_field->indicator(2) eq '0'
+               &&  defined ($contents_field->subfield('t') ) )  {
+                # count of title subfields
+                $count_works += scalar(@{ $contents_field->subfield('t') } )  ;
+            }
+            else {
+                # count of --, will deal with messier records later
+                $count_works
+                    += split(/--/, $contents_field->as_formatted()  ) ;
+                $logger->debug( $contents_field->as_formatted() ) ;
+            }
+        }
+        
+        if( $count_works < 3 ) {      
+            $logger->info("REJECT $id table of contents too short, skipping (had $count_works) ") ;
+            $logger->debug( $marc->as_formatted() ) ;
+        return 1 ;
+        }
+    }
     return 0 ;
 }
 
@@ -202,7 +237,7 @@ sub automatic_accept {
         my $formatted_genre_heading = $genre_heading->as_formatted() ; 
         if ( $formatted_genre_heading=~ /short stories/i
                  || $formatted_genre_heading  =~ /short story/i) {
-            $logger->info("$id Spotted 655 w/ short stor(y|ies)") ;
+            $logger->info("ACCEPT $id Spotted 655 w/ short stor(y|ies)") ;
             return 1 ;
         }
     }
@@ -226,6 +261,23 @@ sub clean_up {
 
 }
 
-ReadMode(0) ;
+sub get_id {
+    my $record = shift ;
+    my $raw_data = $record->field('001')->data() ;
 
+    # probably should just trim whitespace and any special
+    # characters that creep in, but I know my
+    # first few datasets 001 will all be numeric
+
+    $raw_data =~ /(\d+)/ ;
+    if( $1 ) {
+        return $1 ;
+    }
+
+    return $raw_data ;
+
+}
+END {
+    ReadMode(0) ;
+}
     
