@@ -132,7 +132,7 @@ RECORD: while ( my $marc = $batch->next() ) {
     }
 } # END OF RECORD loop
     #print "no immediate qualifiers for short stories\n" ;
-clean_up( $id ) ;
+#clean_up( $id ) ;
 
 #
 # Check for possible reasons to skip/reject this record
@@ -163,7 +163,7 @@ sub reject_record {
     
     if (   !defined($marc->field('505')
                         && !defined($marc->field('500') ) ) ) {
-        $logger->info( "$id no 505 or 500, skipping \n" ) ;
+        $logger->info( "REJECT $id no 505 or 500, skipping \n" ) ;
         return 1 ;
     }
     
@@ -173,7 +173,7 @@ sub reject_record {
     }
     
     if ( substr($marc->leader(),6,2) ne 'am') {
-        $logger->info( "$id leader 0607 not am" ) ;
+        $logger->info( "REJECT $id leader 0607 not am" ) ;
         return 1 ;
     }
     if (  defined($marc->field('008') )
@@ -201,22 +201,33 @@ sub reject_record {
                && $contents_field->indicator(2) eq '0'
                &&  defined ($contents_field->subfield('t') ) )  {
                 # count of title subfields
-                $count_works += scalar(@{ $contents_field->subfield('t') } )  ;
+                $count_works += ( $contents_field->subfield('t') )    ;
             }
             else {
                 # count of --, will deal with messier records later
                 $count_works
                     += split(/--/, $contents_field->as_formatted()  ) ;
-                $logger->debug( $contents_field->as_formatted() ) ;
+                #$logger->debug( $contents_field->as_formatted() ) ;
             }
         }
         
         if( $count_works < 3 ) {      
             $logger->info("REJECT $id table of contents too short, skipping (had $count_works) ") ;
             #$logger->debug( $marc->as_formatted() ) ;
-        return 1 ;
+            return 1 ;
         }
     }
+    my $title = $marc->title() ;
+    if($title =~ /three complete novels/i ) {
+        $logger->info("REJECT $id title contains 'three complete novels' - $title" ) ;
+        return 1 ;
+    }
+    if($title =~ /western trio/i ) {
+        $logger->info("REJECT $id title contains 'western trio' - $title" ) ;
+        return 1 ;
+   
+    }
+    
     return 0 ;
 }
 
@@ -226,7 +237,7 @@ sub automatic_accept {
     my $id = $marc->field('001')->data() ;
     if (   defined($marc->field('008') )
         && substr($marc->field('008')->data(),33,1) eq 'j') {
-        $logger->info("$id Spotted 008 w/ j, adding to file") ;
+        $logger->info("ACCEPT $id Spotted 008 w/ j, adding to file") ;
         return 1 ;
         
     }
@@ -240,6 +251,11 @@ sub automatic_accept {
             $logger->info("ACCEPT $id Spotted 655 w/ short stor(y|ies)") ;
             return 1 ;
         }
+    }
+
+    if( $marc->title() =~ /short stories/i ) {
+        $logger->info("ACCEPT $id title contains short stories") ;
+        return 1 ;
     }
 
     return 0 ;
@@ -281,6 +297,7 @@ sub get_id {
 # should always clean up
 END {
 
-    clean_up() ;
+    
+    clean_up( $id ) ;
 }
     
