@@ -123,12 +123,12 @@ RECORD: while ( my $marc = $batch->next() ) {
         
         redo RECORD ;
     } elsif (lc($key) eq 'y') {
-        $logger->debug("ACCEPTED $id putting in file by manual input") ;
+        $logger->info("ACCEPTED $id putting in file by manual input") ;
         print $short_story_records_h $marc->as_usmarc() ;
     } elsif (lc($key) eq 's') {
         clean_up( $id ) ;
     } elsif (lc($key) eq 'n') {
-        $logger->debug("REJECT $id excluding by manual input") ;
+        $logger->info("REJECT $id excluding by manual input") ;
     }
 } # END OF RECORD loop
     #print "no immediate qualifiers for short stories\n" ;
@@ -213,7 +213,7 @@ sub reject_record {
         
         if( $count_works < 3 ) {      
             $logger->info("REJECT $id table of contents too short, skipping (had $count_works) ") ;
-            $logger->debug( $marc->as_formatted() ) ;
+            #$logger->debug( $marc->as_formatted() ) ;
         return 1 ;
         }
     }
@@ -277,7 +277,10 @@ sub get_id {
     return $raw_data ;
 
 }
+
+# should always clean up
 END {
-    ReadMode(0) ;
+
+    clean_up() ;
 }
     
