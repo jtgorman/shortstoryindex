@@ -43,14 +43,6 @@ my $count = 0 ;
 # system for picking records
 RECORD: while ( my $marc = $batch->next() ) {
 
-    if(!likely_target( $marc )) {
-        next RECORD ;
-    }
-    
-    if(!defined($marc->title()) || !defined($marc->field('505'))) {
-        next RECORD ;
-    }
-
     my $title = $marc->title() ;
     my $notes_field = $marc->field('505') ;
     #ok, let's say for now we only care about Complete, enhanced contents...
@@ -222,20 +214,6 @@ sub setup_neo4j {
 
 #    return $index ;
 }
-sub likely_target {
-
-    my $record = shift ;
-
-    my $leader = $record->leader() ;
-    if( !defined($leader) || substr($leader,6,2) ne 'am' ) {
-        print "$leader 0607 is " . substr($leader,6,2) . "\n" ;
-        return 0 ;
-    }
-
-
-    return 1;
-}
-
 
 sub fetch_or_create_node {
 
