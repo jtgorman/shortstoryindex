@@ -36,6 +36,10 @@ Current Progress
 
 This is a very rough first version. This seems to be pulling in from the collection fine and I've done some interesting queries against some of the data. I'm sure there's a lot of bugs, but I haven't had time to do much. Figure posting here might give me more motivation to keep tinkering with it ;).
 
+graphstyle.grass
+===============
+
+A stylesheet for displaying the titles of works and name of authors.
 
 To Dos
 ===============
