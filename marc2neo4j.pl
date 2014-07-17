@@ -64,6 +64,7 @@ RECORD: while ( my $marc = $batch->next() ) {
     my $book_node = REST::Neo4p::Node->new( {title => $title,
                                              name => $title,
                                              loc_bib_id => $marc->field('001')->data(),
+                                             type => 'book'
                                          }
                                         );
         
