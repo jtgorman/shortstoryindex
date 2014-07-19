@@ -5,10 +5,17 @@ Short Story Index
 
 The very beginning of a process/project to take some dumps of marc records from diverse sources and extract out the various short stories and upload them to a Neo4j graph database (see http://www.neo4j.com) and do some analysis. 
 
-Right now consists of two perl scripts:
-
+Files
+===============
+Main files
 * filter_records.pl
 * marc2neo4j.pl
+
+Other files
+* MARCUtils.pm
+* create_pull_list.pl
+* graphstyle.grass
+* interesting_queries.txt
 
 Right now this isn't a perl module/bundle, so there's not the usual perl makefile, make, make install. Sorry.
 
@@ -33,15 +40,34 @@ Requires Neo4j to be installed and running.
 
 Notice that the graph here is pretty rudimentray and basic. There's no authority control and we're going by exact match of title string contained in the title notes and the author names. (The author names are sometimes derived from the 100 note, using the perl MARC::Record author() method.
 
-Current Progress
+MARCUtils.pm
 ===============
 
-This is a very rough first version. This seems to be pulling in from the collection fine and I've done some interesting queries against some of the data. I'm sure there's a lot of bugs, but I haven't had time to do much. Figure posting here might give me more motivation to keep tinkering with it ;).
+Modules with some useful functions not provided by the MARC packages (that I've noticed).
+
+create_pull_list.pl
+===============
+First batch of records were in marc-8, decided to change to unicode. This script is a nice little utility script that will get the bib_ids from an already processed batch, so I could "rerun" filter_records.pl to pull out the same records w/ no manual intervention.
+
+
+interesting_queries.txt
+===============
+
+Some interesting queries (at least to me) in cypher, the NEo4j query language.
 
 graphstyle.grass
 ===============
 
 A stylesheet for displaying the titles of works and name of authors.
+
+
+
+
+Current Progress
+===============
+
+This is a very rough first version. This seems to be pulling in from the collection fine and I've done some interesting queries against some of the data. I'm sure there's a lot of bugs, but I haven't had time to do much. Figure posting here might give me more motivation to keep tinkering with it ;).
+
 
 To Dos
 ===============
