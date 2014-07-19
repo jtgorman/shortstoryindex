@@ -55,6 +55,7 @@ interesting_queries.txt
 
 Some interesting queries (at least to me) in cypher, the NEo4j query language.
 
+
 graphstyle.grass
 ===============
 

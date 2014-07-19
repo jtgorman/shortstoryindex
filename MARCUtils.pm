@@ -8,6 +8,7 @@ use strict ;
 use warnings ;
 
 use MARC::File::USMARC ;
+use MARC::Batch ;
 
 use Tie::File ;
 
@@ -22,7 +23,7 @@ our @ISA = qw(Exporter);
 # Exporting the add and subtract routine
 #@EXPORT = qw(add subtract);
 # Exporting the multiply and divide  routine on demand basis.
-our @EXPORT_OK = qw(get_last_record number_of_records);
+our @EXPORT_OK = qw(get_last_record number_of_records get_bib_ids);
 
 
 # really need to benchmark this, might be better to roll our own
@@ -51,3 +52,42 @@ sub number_of_records {
     return scalar( @records ) ;
  
 }
+
+
+sub get_bib_ids {
+
+    my @file_paths = @_ ;
+    my @bib_ids = ();
+    
+    my $batch = MARC::Batch->new( 'USMARC', @file_paths ) ;
+    while( my $record = $batch->next( \&_001_filter ) ) {
+
+        my $bib_id = _get_bib_id( $record ) ;
+        push( @bib_ids,
+              $bib_id ,
+          ) ;
+              
+    }
+
+    return @bib_ids ;
+}
+
+sub _001_filter {
+
+    my ($tagno,$tagdata) = @_ ;
+    return ($tagno == '001') ; 
+}
+
+sub _get_bib_id {
+
+    my $record = shift ;
+
+    my $field_001 = $record->field('001')->data() ;
+
+    $field_001 =~ s/^\s*// ;
+    $field_001 =~ s/\s*$// ;
+
+    return $field_001 ;
+
+}
+

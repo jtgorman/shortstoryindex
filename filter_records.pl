@@ -21,6 +21,39 @@ Log::Log4perl::init('log.config') ;
 my $logger = Log::Log4perl->get_logger() ;
 
 
+####################
+# Some setup options
+##########
+
+use Getopt::Long ;
+
+my $pull_list = '';
+my %pull_bib_ids ;
+my $pull_mode = 0 ;
+
+GetOptions (
+    "pull-file=s" => \$pull_list, # string
+) or die( help_message() );
+
+if( $pull_list ne '' ) {
+
+    $logger->info("Pull list provided") ;
+    unless(-e $pull_list) {
+        die "$pull_list does not exist!" ;
+    }
+        
+    %pull_bib_ids =
+        map { $_ =~ s/^\s*// ;
+              $_ =~ s/\s*$// ;
+              $_ => 1 }
+
+            read_file( $pull_list,  {chomped => 1} ) ;
+
+}
+
+
+
+
 # so rough flow
 # go through a set of rules
 # create a score
@@ -57,7 +90,16 @@ my $logger = Log::Log4perl->get_logger() ;
 
 my @marc_files = @ARGV ;
 
-my $total_records = sum( map { number_of_records( $_ ) } @marc_files ) ; 
+if(@marc_files == 0) {
+    die "You didn't supply any files to be procssed \n " ;
+}
+
+my $total_records =
+    sum(
+        map
+            { number_of_records( $_ ) }
+            @marc_files
+        ) ; 
 
 my $batch = MARC::Batch->new( 'USMARC', @marc_files );
 
@@ -83,10 +125,24 @@ my $record_pos = 1 ;
 # system for picking records
 RECORD: while ( my $marc = $batch->next() ) {
 
+    
     $id = get_id( $marc ) ;
     $logger->debug(" processing $record_pos of $total_records "
                    . sprintf("%.2d%%",$record_pos / $total_records ) ) ;
-                        
+
+    if( %pull_bib_ids && defined($pull_bib_ids{ $id } ) ) {
+            $logger->info("ACCEPT Pull mode, $id was in pull list") ; 
+            print $short_story_records_h $marc->as_usmarc() ;
+
+            $record_pos ;
+            next RECORD ;
+        }
+    elsif( %pull_bib_ids ) {
+
+        $record_pos ;
+        next RECORD ;            
+    }
+
     # leader 35 to 37 has language of material
     # eng or ..
     
@@ -107,9 +163,9 @@ RECORD: while ( my $marc = $batch->next() ) {
     # What about 008/33 Literary form = 'e' (essays) and
     # 'j' (short stories) and 'p' (poems) or 'm' (mixed forms)?
 
-    # so let's just get a set to play around w/
+# so let's just get a set to play around w/
 
-    if( reject_record( $marc ) ) {
+if( reject_record( $marc ) ) {
         $record_pos++ ;
         next RECORD ;
     }
@@ -309,6 +365,24 @@ sub get_id {
 
     return $raw_data ;
 
+}
+
+
+sub help_messsage {
+
+    my $help_message =<<"EOM";
+./filter_records.pl marc_records.mrc [marc_records2.mrc, marc_records3...]
+
+Other options
+
+./filter_records.pl --pull-list list_of_ids.txt marc_records.mrc
+
+If you want to pull just particular $id records (say you want to re-pull due to some encoding issues), have a file with a list of the 001 fields, one per line.
+
+* Note, whitespaces at beginning/start of lines in the pull list will be trimmed. 
+
+EOM
+    
 }
 
 # should always clean up
