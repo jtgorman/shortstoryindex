@@ -27,9 +27,11 @@ I'm more concerned with higher precision than necessarily great recall, I mostly
 marc2neo4j.pl
 ===============
 
-.marc2neo4j.pl
+./marc2neo4j.pl marc_collection.marc
 
-(Requires Neo4j to be installed and running.
+Requires Neo4j to be installed and running.
+
+Notice that the graph here is pretty rudimentray and basic. There's no authority control and we're going by exact match of title string contained in the title notes and the author names. (The author names are sometimes derived from the 100 note, using the perl MARC::Record author() method.
 
 Current Progress
 ===============

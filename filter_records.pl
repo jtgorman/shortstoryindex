@@ -9,7 +9,11 @@ ReadMode(4) ;
 
 use MARC::Batch ;
 
+use MARCUtils qw( number_of_records ) ;
+
 use File::Slurp ;
+
+use List::Util qw(  sum ) ;
 
 use Log::Log4perl qw(get_logger :levels);
 
@@ -50,7 +54,12 @@ my $logger = Log::Log4perl->get_logger() ;
 
 # so let's just get a set to play around w/
 
-my $batch = MARC::Batch->new( 'USMARC', @ARGV );
+
+my @marc_files = @ARGV ;
+
+my $total_records = sum( map { number_of_records( $_ ) } @marc_files ) ; 
+
+my $batch = MARC::Batch->new( 'USMARC', @marc_files );
 
 my $last_record_id_filepath = 'last_record_id' ;
 
@@ -67,13 +76,17 @@ binmode $short_story_records_h ;
 # need to do a report on how many records...
 
 my $id = -1 ;
+my $record_pos = 1 ;
+
 #while ( my $marc = $batch->next(\&marc_filter) ) {
 # going to remove the filter temporarily, while we try to get a better
 # system for picking records
 RECORD: while ( my $marc = $batch->next() ) {
 
     $id = get_id( $marc ) ;
-
+    $logger->debug(" processing $record_pos of $total_records "
+                   . sprintf("%.2d%%",$record_pos / $total_records ) ) ;
+                        
     # leader 35 to 37 has language of material
     # eng or ..
     
@@ -97,10 +110,12 @@ RECORD: while ( my $marc = $batch->next() ) {
     # so let's just get a set to play around w/
 
     if( reject_record( $marc ) ) {
+        $record_pos++ ;
         next RECORD ;
     }
     if( automatic_accept( $marc ) ) {
         print $short_story_records_h $marc->as_usmarc() ;
+        $record_pos++;
         next RECORD ;
        
     }
@@ -130,6 +145,8 @@ RECORD: while ( my $marc = $batch->next() ) {
     } elsif (lc($key) eq 'n') {
         $logger->info("REJECT $id excluding by manual input") ;
     }
+
+    $record_pos++ ;
 } # END OF RECORD loop
     #print "no immediate qualifiers for short stories\n" ;
 #clean_up( $id ) ;
@@ -300,4 +317,3 @@ END {
     
     clean_up( $id ) ;
 }
-    
