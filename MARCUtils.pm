@@ -23,7 +23,7 @@ our @ISA = qw(Exporter);
 # Exporting the add and subtract routine
 #@EXPORT = qw(add subtract);
 # Exporting the multiply and divide  routine on demand basis.
-our @EXPORT_OK = qw(get_last_record number_of_records get_bib_ids);
+our @EXPORT_OK = qw(get_last_record number_of_records get_bib_ids get_bib_id);
 
 
 # really need to benchmark this, might be better to roll our own
@@ -62,7 +62,7 @@ sub get_bib_ids {
     my $batch = MARC::Batch->new( 'USMARC', @file_paths ) ;
     while( my $record = $batch->next( \&_001_filter ) ) {
 
-        my $bib_id = _get_bib_id( $record ) ;
+        my $bib_id = get_bib_id( $record ) ;
         push( @bib_ids,
               $bib_id ,
           ) ;
@@ -78,7 +78,7 @@ sub _001_filter {
     return ($tagno == '001') ; 
 }
 
-sub _get_bib_id {
+sub get_bib_id {
 
     my $record = shift ;
 
@@ -91,3 +91,4 @@ sub _get_bib_id {
 
 }
 
+1;

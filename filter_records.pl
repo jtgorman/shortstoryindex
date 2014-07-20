@@ -48,7 +48,7 @@ if( $pull_list ne '' ) {
               $_ => 1 }
 
             read_file( $pull_list,  {chomped => 1} ) ;
-
+    $pull_mode = 1 ;
 }
 
 
@@ -339,8 +339,10 @@ sub clean_up {
 
     my $id = shift ;
     $logger->debug("Cleaning up, passed in $id") ;
-    
-    if( defined($id) ) {
+
+    # seems a little fiddly, may need to refactor if we end up getting
+    # more "modes" (maybe just have a save progress/not save progress
+    if( defined($id) && !$pull_mode ) {
         write_file( $last_record_id_filepath, $id ) ;
     }
     
