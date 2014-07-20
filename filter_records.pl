@@ -127,19 +127,20 @@ RECORD: while ( my $marc = $batch->next() ) {
 
     
     $id = get_id( $marc ) ;
+    my $percent_completed = ($record_pos / $total_records) * 100 ;
     $logger->debug(" processing $record_pos of $total_records "
-                   . sprintf("%.2d%%",$record_pos / $total_records ) ) ;
+                   . sprintf("%.1f%%",  $percent_completed) ) ;
 
     if( %pull_bib_ids && defined($pull_bib_ids{ $id } ) ) {
             $logger->info("ACCEPT Pull mode, $id was in pull list") ; 
             print $short_story_records_h $marc->as_usmarc() ;
 
-            $record_pos ;
+            $record_pos++ ;
             next RECORD ;
         }
     elsif( %pull_bib_ids ) {
 
-        $record_pos ;
+        $record_pos++ ;
         next RECORD ;            
     }
 
