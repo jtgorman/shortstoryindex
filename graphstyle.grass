@@ -17,3 +17,19 @@ relationship {
   text-color-internal: #FFFFFF;
 }
 
+node.responsible {
+  color: #F25A29;
+  border-color: #DC4717;
+  text-color-internal: #FFFFFF;
+  diameter: 40px;
+  border-width: 2px;
+  caption: '{name}';
+  font-size: 10px;
+}
+
+node.work {
+  color: #AD62CE;
+  border-color: #9453B1;
+  text-color-internal: #FFFFFF;
+}
+

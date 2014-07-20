@@ -3,12 +3,34 @@
 use strict ;
 use warnings ;
 
+use MARCUtils qw( get_bib_id number_of_records) ;
+
 # need to create a template...
 
 use Log::Log4perl qw(get_logger :levels);
 
 Log::Log4perl::init('log.config') ;
 my $logger = Log::Log4perl->get_logger() ;
+
+# pretty much taken from the Log4perl FAQ
+$SIG{__WARN__} = sub {
+    local $Log::Log4perl::caller_depth =
+        $Log::Log4perl::caller_depth + 1;
+    $logger->warn(  @_ );
+};
+
+$SIG{__DIE__} = sub {
+    if($^S) {
+        # We're in an eval {} and don't want log
+        # this message but catch it later
+        return;
+    }
+    $Log::Log4perl::caller_depth++;
+    $logger->logdie( @_ ) ;
+    
+};
+
+
 
 #use Config::General ;
 #my $conf = Config::General->new("marc2neo4j.config");
@@ -29,35 +51,83 @@ my $logger = Log::Log4perl->get_logger() ;
 use MARC::Batch ;
 use MARC::Record ;
 
+use List::Util qw(  sum ) ;
 
 use REST::Neo4p;
 
-#use REST::Neo4p::Batch ;
+
+####################
+# Setup
+##########
+$logger->info( "starting setup process" ) ;
+
 
 setup_neo4j() ;
+
+my $fetch_work_q =<<"EOQ";
+MATCH (node:work)
+WHERE node.title = { value }
+RETURN node ;
+EOQ
+
+my $fetch_responsible_q =<<"EOQ";
+MATCH (node:responsbile)
+WHERE node.name = { value }
+RETURN node ;
+EOQ
+
+#my $fetch_responsible_q = "MATCH (responsible:node) WHERE title = " ;
+#my $fetch_work_q = "START n=node:work(title = { value } ) RETURN n" ;
+#my $fetch_responsible_q = "START n=node:responsible(name = { value } )RETURN n " ;
+
+my %query_cache = (
+    work => REST::Neo4p::Query->new( $fetch_work_q ),
+    responsible => REST::Neo4p::Query->new( $fetch_responsible_q ),
+) ;
+
+my %type_lookup_key = (
+    work => 'title' ,
+    responsible => 'name',
+) ;
+
+$logger->info("Starting import of files " . join(',',@ARGV) ) ;
 
 # look more into batch mode later...
 
 my $batch = MARC::Batch->new( 'USMARC', @ARGV );
-my $count = 0 ;
+my $count = 1 ;
+my $total_count
+    = sum( map { number_of_records( $_ ) } @ARGV ) ;        
+
+$logger->info("finished setup") ;
+
+##########
+# End of Setup
+####################
+
 #while ( my $marc = $batch->next(\&marc_filter) ) {
 # going to remove the filter temporarily, while we try to get a better
 # system for picking records
 RECORD: while ( my $marc = $batch->next() ) {
+
+    $logger->debug("importing " . get_bib_id( $marc ) ) ;
     
     my $title = $marc->title() ;
     my @note_fields = $marc->field('505') ;
     push(@note_fields,
          $marc->field('500') ) ;
-
-    my @contents = () ;
     
-    $logger->debug( "At record " . $count++ )  ;
+    my @contents = () ;
+
+    my $pecentage = sprintf("%.1f",$count / $total_count * 100 ) ;
+    $logger->debug( "At record $count of $total_count ( $pecentage% )" )  ;
+
+    $count++ ;
     $logger->debug("title: " . $marc->title() ) ;
     $logger->debug(  "TOCs: "
                          . join(map
-                                  { $_->as_formatted() }
-                                  @note_fields ) );
+                                { $_->as_formatted() }
+                                 @note_fields ) );
     
     
     # Add a node for the book
@@ -65,13 +135,14 @@ RECORD: while ( my $marc = $batch->next() ) {
                                              name => $title,
                                              loc_bib_id => $marc->field('001')->data(),
                                              type => 'book'
-                                         }
+                                         },
                                         );
-        
+    $book_node->set_labels( 'book'  ) ;
         if( $marc->author() ) {
             my $book_resp_node
-                = fetch_or_create_responsible_node( {name => $marc->author(),
-                                                     type => 'responsible' } ) ;
+                = fetch_or_create_responsible_node(
+                    {name => $marc->author(),
+                     type => 'responsible' } ) ;
             
             $book_resp_node->relate_to( $book_node, 'responsible_for') ; 
         }
@@ -100,8 +171,7 @@ RECORD: while ( my $marc = $batch->next() ) {
     $logger->debug( Dumper( \@contents ) );
 
         
- 
-    print "Gets past first add_entry \n" ;
+    $logger->debug("Gets past first add_entry \n" ) ;
     foreach my $work (@contents ) {
 
         my $work_resp = $work->{responsible} ;
@@ -111,23 +181,24 @@ RECORD: while ( my $marc = $batch->next() ) {
             && defined( $work_resp ) ) {
 
             $logger->debug("Field has both title & responsbile, $work_title, work_resp") ;
-            my $resp_node = fetch_or_create_responsible_node(  {name => $work_resp,
-                                                                type => 'responsible'},                                                               
-                                                           ) ;
-
+            my $resp_node
+                = fetch_or_create_responsible_node( {name => $work_resp,
+                                                     type => 'responsible'},                                                    ) ;
+            
+            
             my $title_node = fetch_or_create_work_node({title => $work_title,
                                                         type => 'work',
                                                         name => $work_title,
-                                                        }) ;
+                                                    }) ;
             
             # reponsible created work
             $resp_node->relate_to( $title_node, 'responsible_for' ) ;
             
             # book contains work
             $title_node->relate_to( $book_node, 'contained_in' ) ;
+            
 
-
-                                                        
+            
         }
         elsif( defined $work_title ) {
 
@@ -142,6 +213,8 @@ RECORD: while ( my $marc = $batch->next() ) {
         }
     }
 }
+
+$logger->info("finished processing records") ;
 
 sub is_extended_content {
 
@@ -279,42 +352,61 @@ sub setup_neo4j {
 
 sub fetch_or_create_node {
 
-    my $info_ref = shift ;
-    my $match_property = shift ;
-
-    my $value = $info_ref->{$match_property} ;
-
-    $value =~ s/'/\\'/g ;
-
-    my $query_text = "MATCH (node {$match_property:'${value}'}) RETURN node" ;
-
-    print $query_text . "\n" ;
-    my $query = REST::Neo4p::Query->new( $query_text );
-    $query->execute() ;
-
-    if($query->err) {
-         die("Had issue " . $query->errstr) ;
-     }
+    
+    my $type = shift ;
+    my $node_properties = shift ;
+    my $labels_ref = shift ;
+    
+    # default to what I've been calling "type" if not provided
+    if(!defined($labels_ref)) {
+        $labels_ref = [ $type ] ;
+    }
+    
+    use Data::Dumper ;
+    $logger->debug( "Adding node of $type " . Dumper( $node_properties ) ) ;
 
     
-    while( my $row = $query->fetch() ) {
-        # if there's a node, return the first one
-        return $row->[0] ;
-    } 
-    return REST::Neo4p::Node->new( $info_ref ) ;
+    my $value = $node_properties->{ $type_lookup_key{ $type } } ;
+
+    my $query_h = $query_cache{ $type } ;
+
+    # should verify needed 
+    $value =~ s/'/\\'/g ;
+    $value =~ s/\\/\\\\/g ;
+    
+    $query_h->execute( value => $value ) ;
+    
+    if($query_h->err) {
+        die("Had issue with neo4j query " . $query_h->errstr) ;
+     }
+
+    my $node ;
+    RESULTS: while( my $row = $query_h->fetch() ) {
+          $node = $row->[0] ;
+      }
+    if( !defined($node) ) {
+        $node = REST::Neo4p::Node->new( $node_properties ) ;
+        $node->set_labels( @{ $labels_ref} ) ;
+    }
+
+    $logger->debug("finished adding node");
+    return $node ;
 }
 
 #need to refactor above at some point
 sub fetch_or_create_responsible_node {
-    my $info_ref = shift ;
     
-    return fetch_or_create_node($info_ref, 'name') ;
+    my $node_properties = shift ;
+
+    return fetch_or_create_node('responsible',
+                                $node_properties,
+                            ) ;
 }
 
 
 sub fetch_or_create_work_node {
 
-    my $info_ref = shift ;
-    return fetch_or_create_node($info_ref, 'title') ;
-    
+    my $node_properties = shift ;
+    return fetch_or_create_node('work',
+                                $node_properties );
 }
