@@ -173,32 +173,37 @@ RECORD: while ( my $marc = $batch->next() ) {
         
     $logger->debug("Gets past first add_entry \n" ) ;
     foreach my $work (@contents ) {
-
-        my $work_resp = $work->{responsible} ;
+        
+        $logger->debug( $work ) ;
+        
+        my @work_resp =  defined($work->{responsible}) 
+                         ? @{$work->{responsible} }
+                         : ()  ;
         my $work_title = $work->{title} ;
 
-        if (   defined( $work_title )
-            && defined( $work_resp ) ) {
+        
+        
+        if ( defined( $work_title ) &&  @work_resp  ) {
 
-            $logger->debug("Field has both title & responsbile, $work_title, work_resp") ;
-            my $resp_node
-                = fetch_or_create_responsible_node( {name => $work_resp,
-                                                     type => 'responsible'},                                                    ) ;
-            
+            $logger->debug("Field has both title & responsbile: title = $work_title, responsible_for = " . join(', ', @work_resp ) );
             
             my $title_node = fetch_or_create_work_node({title => $work_title,
                                                         type => 'work',
                                                         name => $work_title,
                                                     }) ;
             
-            # reponsible created work
-            $resp_node->relate_to( $title_node, 'responsible_for' ) ;
-            
             # book contains work
             $title_node->relate_to( $book_node, 'contained_in' ) ;
-            
 
             
+            foreach my $work_resp (@work_resp ) {
+                my $resp_node
+                    = fetch_or_create_responsible_node( {name => $work_resp,
+                                                         type => 'responsible'},                                                    ) ;
+
+                # reponsible created work
+                $resp_node->relate_to( $title_node, 'responsible_for' ) ;
+            }
         }
         elsif( defined $work_title ) {
 
@@ -262,7 +267,8 @@ sub parse_string_of_contents {
     # going to assume title / statment of responibility -- 
     my @subparts = split(/ ?-- ?/,
                          $contents_string,
-                      ) ;
+                     ) ;
+    
     foreach my $subpart (@subparts) {
         my ($title, $resp) = split(/\//, $subpart) ;
         push(@works,{
@@ -293,14 +299,31 @@ sub parse_enhanced_contents {
     # for now going to assume either a $t or a $t $r pattern
 
     my @entries ;
-    
+
+    # for now haven't decided what to do if
+    # record doesn't have t r pattern
+    # see 00702848 as an example of one that apparently didn't
+    # but instead mixes t and r up
+
     foreach my $subfield ($contents_field->subfields() ) {
-        if( $subfield->[0] eq 'r' ) {
+
+        $logger->debug( "Subfield: " . Dumper( $subfield ) );
+                        
+        if(   $subfield->[0] eq 'r' ) {
+            $logger->debug("Subfield of type 'r'") ;
+
             my $resp = remove_common_attributions( $subfield->[1] ) ;
-            push($entries[-1]->{responsible},
-                 $resp ) ;
+            $logger->debug("adding person responsible") ;
+            # need to create more test records for
+            # different patterns
+             ;
+            push( @{  $entries[-1]->{responsible} },
+                  $resp ) ;
         }
         elsif( $subfield->[0] eq 't' ) {
+
+            $logger->debug("Subfield of type 't'") ;
+
             my $title = $subfield->[1] ;
             $title =~ / ?-- ?/ ;
             
