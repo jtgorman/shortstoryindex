@@ -4,19 +4,20 @@ OPTIONAL MATCH (n)-[r]-()
 DELETE n,r
 
 # show some work - contained_in -> book
-match (work)-[:contained_in]->(book) return work, book limit 25
-
-# find works contained in multiple books
-match (book2)<-[:contained_in]-(work)-[:contained_in]->(book) where book2.title <> book.title return work
+match (work:work)-[:contained_in]->(book:book)
+return work, book limit 25
 
 #find works/titles that occur in a larger number of books
-match (w{type: 'work' })-[r:contained_in]-() with w as work, count(*) as count where count > 1 return work, count order by count desc
+match (w:work)-[r:contained_in]-() with w as work, count(*) as count
+where count > 1
+return work, count order by count desc
 
 #find authors responsible for multipe works and books
-match (p{type: 'responsible' })-[r:responsible_for]-() with p as person, count(*) as count where count > 1 return person, count order by count desc
+match (p:responsible )-[r:responsible_for]-() with p as person, count(*) as count
+where count > 1 return person, count order by count desc
 
 # Show works contained in multiple books
-MATCH (w)-[r:contained_in]->()
+MATCH (w:work)-[r:contained_in]->()
 WITH w as work, count(*) as c
 WHERE c > 1
 match (work)-[r:contained_in]->(book)
