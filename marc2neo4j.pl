@@ -3,6 +3,8 @@
 use strict ;
 use warnings ;
 
+use File::Slurp ;
+
 use MARCUtils qw( get_bib_id number_of_records) ;
 
 # need to create a template...
@@ -61,6 +63,19 @@ use REST::Neo4p;
 ##########
 $logger->info( "starting setup process" ) ;
 
+my $skip_file = '';
+use Getopt::Long ;
+
+GetOptions ("skip-list=s" => \$skip_file ) ;
+
+my %skip_records = () ;
+if($skip_file ne '') {
+
+    $logger->debug( "pulling in ids from $skip_file" ) ;
+    %skip_records = get_skip_list( $skip_file ) ;
+
+    
+}
 
 setup_neo4j() ;
 
@@ -101,6 +116,8 @@ my $total_count
 
 $logger->info("finished setup") ;
 
+
+
 ##########
 # End of Setup
 ####################
@@ -110,7 +127,13 @@ $logger->info("finished setup") ;
 # system for picking records
 RECORD: while ( my $marc = $batch->next() ) {
 
-    $logger->debug("importing " . get_bib_id( $marc ) ) ;
+    my $id = get_bib_id( $marc ) ;
+    $logger->debug("importing " . $id ) ;
+
+    if( $skip_records{ $id } ) {
+        $logger->info("SKIP $id in skip list") ;
+        next RECORD ;
+    }
     
     my $title = $marc->title() ;
     my @note_fields = $marc->field('505') ;
@@ -221,6 +244,14 @@ RECORD: while ( my $marc = $batch->next() ) {
 
 $logger->info("finished processing records") ;
 
+sub get_skip_list {
+
+    my $file_path = shift ;
+
+    return map { $_ => 1 } read_file( $file_path, { chomp => 1 } ) ;
+    
+}
+
 sub is_extended_content {
 
     my $contents_field = shift ;
@@ -306,7 +337,7 @@ sub parse_enhanced_contents {
     # but instead mixes t and r up
 
     foreach my $subfield ($contents_field->subfields() ) {
-
+        
         $logger->debug( "Subfield: " . Dumper( $subfield ) );
                         
         if(   $subfield->[0] eq 'r' ) {
@@ -316,7 +347,9 @@ sub parse_enhanced_contents {
             $logger->debug("adding person responsible") ;
             # need to create more test records for
             # different patterns
-             ;
+
+            #if( ! defined ( $entries[-1] ) || ! defined(
+
             push( @{  $entries[-1]->{responsible} },
                   $resp ) ;
         }
