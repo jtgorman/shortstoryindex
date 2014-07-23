@@ -125,8 +125,20 @@ $logger->info("finished setup") ;
 #while ( my $marc = $batch->next(\&marc_filter) ) {
 # going to remove the filter temporarily, while we try to get a better
 # system for picking records
+
+$batch->strict_off() ;
+
+
+# bad, I know
 RECORD: while ( my $marc = $batch->next() ) {
 
+    my $warnings = $batch->warnings() ;
+    if( defined($warnings) && $warnings > 0 ) {
+        $logger->warn( "SKIPPING record due to error in MARC " . $batch->warnings() ) ;
+        next RECORD ;
+    }
+    
+    
     my $id = get_bib_id( $marc ) ;
     $logger->debug("importing " . $id ) ;
 
@@ -195,17 +207,18 @@ RECORD: while ( my $marc = $batch->next() ) {
 
         
     $logger->debug("Gets past first add_entry \n" ) ;
-    foreach my $work (@contents ) {
+    WORK: foreach my $work (@contents ) {
         
-        $logger->debug( $work ) ;
-        
-        my @work_resp =  defined($work->{responsible}) 
-                         ? @{$work->{responsible} }
-                         : ()  ;
+          $logger->debug( $work ) ;
+          
+          my @work_resp =  defined($work->{responsible}) 
+                        ? @{$work->{responsible} }
+                        : ()  ;
         my $work_title = $work->{title} ;
 
-        
-        
+          if( non_story_content( $work_title ) ) {
+              next WORK ;
+          }
         if ( defined( $work_title ) &&  @work_resp  ) {
 
             $logger->debug("Field has both title & responsbile: title = $work_title, responsible_for = " . join(', ', @work_resp ) );
@@ -465,4 +478,23 @@ sub fetch_or_create_work_node {
     my $node_properties = shift ;
     return fetch_or_create_node('work',
                                 $node_properties );
+}
+
+sub non_story_content {
+
+    my $title = shift ;
+
+    $title =~ s/\.//g ;
+    $title =~ s/ //g ;
+
+    $title = lc( $title ) ;
+    
+    if(   $title =~ /tpverso/
+       || $title eq 'introduction'
+       || $title eq 'cover' 
+       || $title eq 'forward' ) {
+        return 1 ;
+    }
+    return 0 ;
+    
 }
