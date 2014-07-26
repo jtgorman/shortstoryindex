@@ -328,13 +328,22 @@ sub parse_string_of_contents {
     
     foreach my $subpart (@subparts) {
         
-        my ($title, $resp) = split(/\//, $subpart) ;
+        my ($title, $resp_part) = split(/\//, $subpart) ;
 
-        $resp =~ s/\.\s*$//; # remove trailing period
+        # do we really want to worry about this relatively rare
+        # edge case where there is multiple authors for
+        # one short story (and what if three? dealing with ,? )
+
+        $resp_part =~ s/\.\s*$//; # remove trailing period
+
+        my @responsibles
+            = map
+              { trim ($_) }
+              split( / and /, $resp_part );
 
         push(@works,{
             title => trim($title),
-            responsible  => trim($resp),
+            responsible  => \@responsibles,
         });
     }
 
