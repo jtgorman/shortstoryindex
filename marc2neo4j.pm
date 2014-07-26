@@ -3,7 +3,7 @@
 use strict ;
 use warnings ;
 
-package marc2neo4p ;
+package marc2neo4j ;
 
 use File::Slurp ;
 
