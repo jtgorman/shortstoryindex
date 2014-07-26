@@ -61,6 +61,14 @@ my @expected_work_hashes = (
       responsible => 'William F. Nolan'},
     ) ;
 
+#use Data::Dumper ;
+
+#print "actual: \n" ;
+#print Dumper (\@actual_work_hashes ) ;
+
+#print "expected: \n " ;
+#print Dumper (\@expected_work_hashes ) ;
+
 is_deeply( \@actual_work_hashes,
            \@expected_work_hashes ) ;
 

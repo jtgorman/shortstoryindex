@@ -327,10 +327,14 @@ sub parse_string_of_contents {
                      ) ;
     
     foreach my $subpart (@subparts) {
+        
         my ($title, $resp) = split(/\//, $subpart) ;
+
+        $resp =~ s/\.\s*$//; # remove trailing period
+
         push(@works,{
             title => trim($title),
-            responsibility  => trim($resp),
+            responsible  => trim($resp),
         });
     }
 
