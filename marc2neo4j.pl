@@ -167,17 +167,14 @@ RECORD: while ( my $marc = $batch->next() ) {
     
     # Add a node for the book
     my $book_node = REST::Neo4p::Node->new( {title => $title,
-                                             name => $title,
                                              loc_bib_id => $marc->field('001')->data(),
-                                             type => 'book'
                                          },
                                         );
     $book_node->set_labels( 'book'  ) ;
         if( $marc->author() ) {
             my $book_resp_node
                 = fetch_or_create_responsible_node(
-                    {name => $marc->author(),
-                     type => 'responsible' } ) ;
+                    {name => $marc->author()  } ) ;
             
             $book_resp_node->relate_to( $book_node, 'responsible_for') ; 
         }
@@ -190,7 +187,7 @@ RECORD: while ( my $marc = $batch->next() ) {
         #make a content object...eventually
         
         # should see if there's an ISBD parser, if not
-        # make one, but for now, being lazy
+        # make one, but for now, being lazystype
 
         if( is_extended_content($note_field) ) {
             push(@contents,
@@ -223,10 +220,7 @@ RECORD: while ( my $marc = $batch->next() ) {
 
             $logger->debug("Field has both title & responsbile: title = $work_title, responsible_for = " . join(', ', @work_resp ) );
             
-            my $title_node = fetch_or_create_work_node({title => $work_title,
-                                                        type => 'work',
-                                                        name => $work_title,
-                                                    }) ;
+            my $title_node = fetch_or_create_work_node({title => $work_title }) ;
             
             # book contains work
             $title_node->relate_to( $book_node, 'contained_in' ) ;
@@ -235,7 +229,7 @@ RECORD: while ( my $marc = $batch->next() ) {
             foreach my $work_resp (@work_resp ) {
                 my $resp_node
                     = fetch_or_create_responsible_node( {name => $work_resp,
-                                                         type => 'responsible'},                                                    ) ;
+                                                         },                                                    ) ;
 
                 # reponsible created work
                 $resp_node->relate_to( $title_node, 'responsible_for' ) ;
@@ -245,7 +239,7 @@ RECORD: while ( my $marc = $batch->next() ) {
 
             $logger->debug("Work only has title  $work_title") ;
             my $title_node = fetch_or_create_work_node({title => $work_title,
-                                                        type => 'work'}) ;
+                                                        }) ;
 
             # work contained_in book
             $title_node->relate_to( $book_node, 'contained_in' ) ;
