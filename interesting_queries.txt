@@ -17,8 +17,8 @@ match (p:responsible )-[r:responsible_for]-() with p as person, count(*) as coun
 where count > 1 return person, count order by count desc
 
 # Show works contained in multiple books
-MATCH (w:work)-[r:contained_in]->()
-WITH w as work, count(*) as c
+MATCH (w:work)-[r:contained_in]->(book)
+WITH w as work, count(distinct book.loc_bib_id) as c
 WHERE c > 1
 match (work)-[r:contained_in]->(book)
 return work, r, book
