@@ -9,7 +9,7 @@ Files
 ===============
 Main files
 * filter_records.pl
-* marc2neo4j.pl
+* marc2neo4j.pm
 
 Other files
 * MARCUtils.pm
@@ -31,14 +31,17 @@ Right now I'm using this against the Internet Archives Scriblio colleciton, see 
 I'm more concerned with higher precision than necessarily great recall, I mostly want to gather a pretty good corpus of material for pushing into neo4j.
 
 
-marc2neo4j.pl
+marc2neo4j.pm
 ===============
 
-./marc2neo4j.pl marc_collection.marc
+./marc2neo4j.pm marc_collection.marc
 
 Requires Neo4j to be installed and running.
 
 Notice that the graph here is pretty rudimentray and basic. There's no authority control and we're going by exact match of title string contained in the title notes and the author names. (The author names are sometimes derived from the 100 note, using the perl MARC::Record author() method.
+
+(Also, this is a perl modulino, it can either be run as a script or as a module, mainly for testing. At some point should refactor any such methods out into appropriate modules/classes/etc)
+
 
 MARCUtils.pm
 ===============

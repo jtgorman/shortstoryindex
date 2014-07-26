@@ -3,11 +3,9 @@
 use strict ;
 use warnings ;
 
+package marc2neo4p ;
+
 use File::Slurp ;
-
-use MARCUtils qw( get_bib_id number_of_records) ;
-
-# need to create a template...
 
 use Log::Log4perl qw(get_logger :levels);
 
@@ -34,12 +32,13 @@ $SIG{__DIE__} = sub {
 
 
 
-#use Config::General ;
-#my $conf = Config::General->new("marc2neo4j.config");
-#my %config = $conf->getall;
+use MARCUtils qw( get_bib_id number_of_records) ;
 
 
-# We'll want to pull this out into a module later
+
+
+
+# need to create a template...
 
 
 # but basically want to
@@ -57,27 +56,10 @@ use List::Util qw(  sum ) ;
 
 use REST::Neo4p;
 
-
-####################
-# Setup
-##########
-$logger->info( "starting setup process" ) ;
-
-my $skip_file = '';
 use Getopt::Long ;
 
-GetOptions ("skip-list=s" => \$skip_file ) ;
-
-my %skip_records = () ;
-if($skip_file ne '') {
-
-    $logger->debug( "pulling in ids from $skip_file" ) ;
-    %skip_records = get_skip_list( $skip_file ) ;
-
-    
-}
-
 setup_neo4j() ;
+
 
 my $fetch_work_q =<<"EOQ";
 MATCH (node:work)
@@ -90,12 +72,15 @@ MATCH (node:responsbile)
 WHERE node.name = { value }
 RETURN node ;
 EOQ
-
-#my $fetch_responsible_q = "MATCH (responsible:node) WHERE title = " ;
-#my $fetch_work_q = "START n=node:work(title = { value } ) RETURN n" ;
-#my $fetch_responsible_q = "START n=node:responsible(name = { value } )RETURN n " ;
-
+    
+my $check_book_already_added_q =<<"EOQ" ;
+MATCH (book { loc_bib_id:  {bib_id} } ) 
+WITH count(*) as count
+RETURN count
+EOQ
+    
 my %query_cache = (
+    book_exists => REST::Neo4p::Query->new( $check_book_already_added_q ),
     work => REST::Neo4p::Query->new( $fetch_work_q ),
     responsible => REST::Neo4p::Query->new( $fetch_responsible_q ),
 ) ;
@@ -105,72 +90,106 @@ my %type_lookup_key = (
     responsible => 'name',
 ) ;
 
-$logger->info("Starting import of files " . join(',',@ARGV) ) ;
 
-# look more into batch mode later...
+__PACKAGE__->run( @ARGV ) unless caller();
 
-my $batch = MARC::Batch->new( 'USMARC', @ARGV );
-my $count = 1 ;
-my $total_count
-    = sum( map { number_of_records( $_ ) } @ARGV ) ;        
-
-$logger->info("finished setup") ;
-
-
-
-##########
-# End of Setup
-####################
-
-#while ( my $marc = $batch->next(\&marc_filter) ) {
-# going to remove the filter temporarily, while we try to get a better
-# system for picking records
-
-$batch->strict_off() ;
-
-
-# bad, I know
-RECORD: while ( my $marc = $batch->next() ) {
-
-    my $warnings = $batch->warnings() ;
-    if( defined($warnings) && $warnings > 0 ) {
-        $logger->warn( "SKIPPING record due to error in MARC " . $batch->warnings() ) ;
-        next RECORD ;
-    }
+sub run {
+    ####################
+    # Setup
+    ##########
+    $logger->info( "starting setup process" ) ;
+    
+    my $skip_file = '';
+    
+    GetOptions ("skip-list=s" => \$skip_file ) ;
+    
+    my %skip_records = () ;
+    if($skip_file ne '') {
+        
+        $logger->debug( "pulling in ids from $skip_file" ) ;
+        %skip_records = get_skip_list( $skip_file ) ;
+        
+        
+}
     
     
-    my $id = get_bib_id( $marc ) ;
-    $logger->debug("importing " . $id ) ;
 
-    if( $skip_records{ $id } ) {
-        $logger->info("SKIP $id in skip list") ;
-        next RECORD ;
-    }
-    
-    my $title = $marc->title() ;
-    my @note_fields = $marc->field('505') ;
-    push(@note_fields,
-         $marc->field('500') ) ;
-    
-    my @contents = () ;
+    $logger->info("Starting import of files " . join(',',@ARGV) ) ;
 
-    my $pecentage = sprintf("%.1f",$count / $total_count * 100 ) ;
-    $logger->debug( "At record $count of $total_count ( $pecentage% )" )  ;
+    # look more into batch mode later...
+    
+    my $batch = MARC::Batch->new( 'USMARC', @ARGV );
+    my $count = 1 ;
+    my $total_count
+        = sum( map { number_of_records( $_ ) } @ARGV ) ;        
+    
+    $logger->info("finished setup") ;
 
-    $count++ ;
-    $logger->debug("title: " . $marc->title() ) ;
-    $logger->debug(  "TOCs: "
-                         . join(map
-                                { $_->as_formatted() }
-                                 @note_fields ) );
+
+    
+    ##########
+    # End of Setup
+    ####################
+    
+    #while ( my $marc = $batch->next(\&marc_filter) ) {
+    # going to remove the filter temporarily, while we try to get a better
+    # system for picking records
+
+    $batch->strict_off() ;
     
     
-    # Add a node for the book
-    my $book_node = REST::Neo4p::Node->new( {title => $title,
-                                             loc_bib_id => $marc->field('001')->data(),
-                                         },
-                                        );
-    $book_node->set_labels( 'book'  ) ;
+    # bad, I know
+  RECORD: while ( my $marc = $batch->next() ) {
+        
+        my $warnings = $batch->warnings() ;
+        if( defined($warnings) && $warnings > 0 ) {
+            $logger->warn( "SKIPPING record due to error in MARC " . $batch->warnings() ) ;
+            next RECORD ;
+        }
+        
+        
+        my $id = get_bib_id( $marc ) ;
+        $logger->debug("importing " . $id ) ;
+        
+        if( $skip_records{ $id } ) {
+            $logger->info("SKIP $id in skip list") ;
+            next RECORD ;
+        }
+        
+        my $title = $marc->title() ;
+        my @note_fields = $marc->field('505') ;
+        push(@note_fields,
+             $marc->field('500') ) ;
+        
+        my @contents = () ;
+        
+        my $pecentage = sprintf("%.1f",$count / $total_count * 100 ) ;
+        $logger->debug( "At record $count of $total_count ( $pecentage% )" )  ;
+        
+        $count++ ;
+        $logger->debug("title: " . $marc->title() ) ;
+        $logger->debug(  "TOCs: "
+                             . join(map
+                                        { $_->as_formatted() }
+                                            @note_fields ) );
+    
+        
+        # for now, decided to skip if book id already present
+        # might want option overwrite/update node
+        # at some point should do "source" + 035 
+        if( book_node_exists( $id) ) {
+            $logger->warn( "Record $id already exists in database" ) ;
+            next RECORD ;
+        }
+
+    
+        # Add a node for the book
+        my $book_node = REST::Neo4p::Node->new( {title => $marc->title(),
+                                                 loc_bib_id => $id,
+                                                 
+                                             },
+                                            );
+        $book_node->set_labels( 'book' ) ;
         if( $marc->author() ) {
             my $book_resp_node
                 = fetch_or_create_responsible_node(
@@ -178,78 +197,78 @@ RECORD: while ( my $marc = $batch->next() ) {
             
             $book_resp_node->relate_to( $book_node, 'responsible_for') ; 
         }
-
+        
 
         
     
-    
-    foreach my $note_field (@note_fields) {
-        #make a content object...eventually
         
+        foreach my $note_field (@note_fields) {
+            #make a content object...eventually
+            
         # should see if there's an ISBD parser, if not
         # make one, but for now, being lazystype
 
-        if( is_extended_content($note_field) ) {
-            push(@contents,
-                 parse_enhanced_contents( $note_field) );
-        }
-        elsif ( contains_toc_in_subfield_a( $note_field ) ) {
-            push(@contents,
-                 parse_basic_contents( $note_field ) ) ;
-        }
+            if ( is_extended_content($note_field) ) {
+                push(@contents,
+                     parse_enhanced_contents( $note_field) );
+            } elsif ( contains_toc_in_subfield_a( $note_field ) ) {
+                push(@contents,
+                     parse_basic_contents( $note_field ) ) ;
+            }
         
-    }
-    use Data::Dumper ;
-    $logger->debug( Dumper( \@contents ) );
+        }
+        use Data::Dumper ;
+        $logger->debug( Dumper( \@contents ) );
 
         
-    $logger->debug("Gets past first add_entry \n" ) ;
-    WORK: foreach my $work (@contents ) {
+        $logger->debug("Gets past first add_entry \n" ) ;
+      WORK: foreach my $work (@contents ) {
         
-          $logger->debug( $work ) ;
+            $logger->debug( $work ) ;
           
-          my @work_resp =  defined($work->{responsible}) 
+            my @work_resp =  defined($work->{responsible}) 
                         ? @{$work->{responsible} }
                         : ()  ;
-        my $work_title = $work->{title} ;
+            my $work_title = $work->{title} ;
 
-          if( non_story_content( $work_title ) ) {
-              next WORK ;
-          }
-        if ( defined( $work_title ) &&  @work_resp  ) {
-
-            $logger->debug("Field has both title & responsbile: title = $work_title, responsible_for = " . join(', ', @work_resp ) );
-            
-            my $title_node = fetch_or_create_work_node({title => $work_title }) ;
-            
-            # book contains work
-            $title_node->relate_to( $book_node, 'contained_in' ) ;
-
-            
-            foreach my $work_resp (@work_resp ) {
-                my $resp_node
-                    = fetch_or_create_responsible_node( {name => $work_resp,
+            if( non_story_content( $work_title ) ) {
+                next WORK ;
+            }
+            if ( defined( $work_title ) &&  @work_resp  ) {
+                
+                $logger->debug("Field has both title & responsbile: title = $work_title, responsible_for = " . join(', ', @work_resp ) );
+                
+                my $title_node = fetch_or_create_work_node({title => $work_title }) ;
+                
+                # book contains work
+                $title_node->relate_to( $book_node, 'contained_in' ) ;
+                
+                
+                foreach my $work_resp (@work_resp ) {
+                    my $resp_node
+                        = fetch_or_create_responsible_node( {name => $work_resp,
                                                          },                                                    ) ;
-
-                # reponsible created work
-                $resp_node->relate_to( $title_node, 'responsible_for' ) ;
+                    
+                    # reponsible created work
+                    $resp_node->relate_to( $title_node, 'responsible_for' ) ;
+                }
+            }
+            elsif( defined $work_title ) {
+                
+                $logger->debug("Work only has title  $work_title") ;
+                my $title_node = fetch_or_create_work_node({title => $work_title,
+                                                        }) ;
+                
+                # work contained_in book
+                $title_node->relate_to( $book_node, 'contained_in' ) ;
+                
+                
             }
         }
-        elsif( defined $work_title ) {
-
-            $logger->debug("Work only has title  $work_title") ;
-            my $title_node = fetch_or_create_work_node({title => $work_title,
-                                                        }) ;
-
-            # work contained_in book
-            $title_node->relate_to( $book_node, 'contained_in' ) ;
-
-            
-        }
     }
+    
+    $logger->info("finished processing records") ;
 }
-
-$logger->info("finished processing records") ;
 
 sub get_skip_list {
 
@@ -492,3 +511,24 @@ sub non_story_content {
     return 0 ;
     
 }
+
+sub book_node_exists {
+
+    my $bib_id = shift ;
+
+    my $check_exists_h = $query_cache{ 'book_exists' } ;
+
+    $logger->debug("Calling  $check_book_already_added_q with $bib_id " ) ;
+    $check_exists_h->execute( bib_id => $bib_id ) ;
+
+    my $count = $check_exists_h->fetch->[0] ; 
+    
+    if ( $count > 0 ) {
+        return 1 ;
+    }
+    return 0 ;
+    
+}
+
+
+__END__
