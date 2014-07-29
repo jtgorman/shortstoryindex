@@ -64,17 +64,8 @@ our @EXPORT_OK = qw( parse );
     # at some point clean this up with a fsa of some type,
     # particularly as the rules get more complicated, but for now just want something that works...
 
-my $state = 'LAST' ;
-
-# this seems soemwhat hackish to me
-# probably should have more states or better cleanup..
-
-my $last_name = '' ;
-my $initials  = '' ;
-my $person_title  = '' ;
-my @titles = () ;
-my $buffer = '' ;
-
+# see init() routine
+my ($state, $last_name, $initials, $person_title, @titles, $buffer );
 
 # feels rough, better way to default actions? Also,
 # should I somehow catch uninitialized errors
@@ -122,6 +113,8 @@ $actions{ INITIALS }{ OTHER } = $actions{ INITIALS }{ PERIOD } ;
 
 sub parse {
 
+    init() ;
+    
     my $string = shift ;
 
     my $char = '' ;
@@ -167,5 +160,17 @@ sub _read_char {
 
     return ($char, $remainder ) ;
 
+}
+
+sub init {
+
+    $state = 'LAST' ;
+    $last_name = '' ;
+    $initials = '' ;
+    $person_title = '';
+
+    @titles = () ;
+
+    $buffer = '' ;
 }
 1;
