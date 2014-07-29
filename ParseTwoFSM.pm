@@ -165,9 +165,26 @@ $actions{ INITIALS }{ OTHER }
     } ;
 
 
-$actions{ PERSON_TITLE }{ COMMA } = sub { } ;
-$actions{ PERSON_TITLE }{ PERIOD } = sub { } ;
-$actions{ PERSON_TITLE }{ OTHER } = sub { } ;
+$actions{ PERSON_TITLE }{ COMMA }
+    = sub {
+        # should throw an error
+        $state = 'RUNTOEND' ;
+    } ;
+
+$actions{ PERSON_TITLE }{ PERIOD }
+    = sub {
+        $person_title = $buffer ;
+        $buffer = q{} ;
+        $state = 'RUNTOEND' ;
+    } ;
+
+$actions{ PERSON_TITLE }{ OTHER }
+    = sub {
+        my $char = shift ;
+        $buffer .= $char ;
+
+        print "PERSON_TITLE buffer is " . $ buffer . "\n" ;
+    } ;
 
 $actions{ RUNTOEND }{ COMMA } = sub { } ;
 
@@ -200,6 +217,7 @@ sub parse {
     }
     print "LAST NAME: " . $last_name . "\n" ;
     print "INITIALS: " . $initials . "\n" ;
+    print "TITLE/SALUTATION: " . $person_title . "\n" ;
     print "TITLES: " . join(", ", @titles )  . "\n" ;
     
     my $name = join(q{ }, $person_title,
