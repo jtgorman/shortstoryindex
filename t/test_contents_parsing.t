@@ -12,6 +12,21 @@ use marc2neo4j ;
 
 use MARC::Field ;
 
+run_test_cases() ;
+done_testing() ;
+
+
+sub run_test_cases {
+
+    run_basic_contents_pattern1() ;
+    run_basic_contents_pattern2() ;
+}
+
+
+ 
+    
+    
+
 ##########
 # Test case 1: parse a basic 505 (non-extended) note
 # with authors and the like
@@ -24,47 +39,49 @@ use MARC::Field ;
 # 245 	00 |a Whispers III / |c edited by Stuart David Schiff.
 # 505 	0_ |a The dead line / Dennis Etchison -- Heading home / Ramsey Campbell -- King Crocodile / David Drake -- The door below / Hugh B. Cave -- Point of departure / Phyllis Eisenstein -- Firstborn / David Campton -- The horses of Lir / Roger Zelazny -- Woodland burial / Frank Belknap Long -- The river of night’s dreaming / Karl Edward Wagner -- Who nose what evil / Charles E. Fritch -- Comb my hair, please comb my hair / Jean Darling -- A fly one / Steve Sneyd -- The button molder / Fritz Leiber -- The final quest / William F. Nolan.
 
-my $basic_505_field = MARC::Field->new( 505,
-                                        '1','',
-                                        'a' => q{The dead line / Dennis Etchison -- Heading home / Ramsey Campbell -- King Crocodile / David Drake -- The door below / Hugh B. Cave -- Point of departure / Phyllis Eisenstein -- Firstborn / David Campton -- The horses of Lir / Roger Zelazny -- Woodland burial / Frank Belknap Long -- The river of night’s dreaming / Karl Edward Wagner -- Who nose what evil / Charles E. Fritch -- Comb my hair, please comb my hair / Jean Darling -- A fly one / Steve Sneyd -- The button molder / Fritz Leiber -- The final quest / William F. Nolan.} ) ;
+sub run_basic_contents_pattern1 {
 
-my @actual_work_hashes = marc2neo4j::parse_basic_contents( $basic_505_field ) ;
+    my $basic_505_field = MARC::Field->new( 505,
+                                            '1','',
+                                            'a' => q{The dead line / Dennis Etchison -- Heading home / Ramsey Campbell -- King Crocodile / David Drake -- The door below / Hugh B. Cave -- Point of departure / Phyllis Eisenstein -- Firstborn / David Campton -- The horses of Lir / Roger Zelazny -- Woodland burial / Frank Belknap Long -- The river of night’s dreaming / Karl Edward Wagner -- Who nose what evil / Charles E. Fritch -- Comb my hair, please comb my hair / Jean Darling -- A fly one / Steve Sneyd -- The button molder / Fritz Leiber -- The final quest / William F. Nolan.} ) ;
 
-
-my @expected_work_hashes = (
-    { title       => 'The dead line',
-      responsible => ['Dennis Etchison',]},
-    { title => 'Heading home',
-      responsible => ['Ramsey Campbell'],},
-    { title => 'King Crocodile',
-      responsible => ['David Drake'],},
-    { title => 'The door below',
-      responsible => ['Hugh B. Cave'],},
-    { title => 'Point of departure',
-      responsible => ['Phyllis Eisenstein'],},
-    { title => 'Firstborn',
-      responsible => ['David Campton'],},
-    { title => 'The horses of Lir',
-      responsible => ['Roger Zelazny'],},
-    { title => 'Woodland burial',
-      responsible => ['Frank Belknap Long'],},
-    { title => 'The river of night’s dreaming',
-      responsible => ['Karl Edward Wagner'],},
-    { title => 'Who nose what evil',
-      responsible => ['Charles E. Fritch'] },
-    { title => 'Comb my hair, please comb my hair',
-      responsible => ['Jean Darling'],},
-    { title => 'A fly one',
-      responsible => ['Steve Sneyd'],},
-    { title => 'The button molder',
-      responsible => ['Fritz Leiber'],},
-    { title => 'The final quest',
-      responsible => ['William F. Nolan']},
+    my @actual_work_hashes = marc2neo4j::parse_basic_contents( $basic_505_field ) ;
+    
+    
+    my @expected_work_hashes = (
+        { title       => 'The dead line',
+          responsible => ['Dennis Etchison',]},
+        { title => 'Heading home',
+          responsible => ['Ramsey Campbell'],},
+        { title => 'King Crocodile',
+          responsible => ['David Drake'],},
+        { title => 'The door below',
+          responsible => ['Hugh B. Cave'],},
+        { title => 'Point of departure',
+          responsible => ['Phyllis Eisenstein'],},
+        { title => 'Firstborn',
+          responsible => ['David Campton'],},
+        { title => 'The horses of Lir',
+          responsible => ['Roger Zelazny'],},
+        { title => 'Woodland burial',
+          responsible => ['Frank Belknap Long'],},
+        { title => 'The river of night’s dreaming',
+          responsible => ['Karl Edward Wagner'],},
+        { title => 'Who nose what evil',
+          responsible => ['Charles E. Fritch'] },
+        { title => 'Comb my hair, please comb my hair',
+          responsible => ['Jean Darling'],},
+        { title => 'A fly one',
+          responsible => ['Steve Sneyd'],},
+        { title => 'The button molder',
+          responsible => ['Fritz Leiber'],},
+        { title => 'The final quest',
+          responsible => ['William F. Nolan']},
     ) ;
 
-is_deeply( \@actual_work_hashes,
-           \@expected_work_hashes ) ;
-
+    is_deeply( \@actual_work_hashes,
+               \@expected_work_hashes ) ;
+}
 ##########
 # Test case 2: parse a basic 505 (non-extended) note
 # with authors
@@ -75,6 +92,9 @@ is_deeply( \@actual_work_hashes,
 # note this test case is based off the original record, but
 # with corrctions (this is why free form metdata entry w/o validation is
 # a bad idea....
+
+
+sub run_basic_contents_pattern2 {
 
 
 #     Relevance: 	
@@ -98,9 +118,11 @@ is_deeply( \@actual_work_hashes,
 # Persistent link to this page: 	https://i-share.carli.illinois.edu/uiu/cgi-bin/Pwebrecon.cgi?DB=local&v4=1&BBRecID=159599
 
 
-my $basic_505_field = MARC::Field->new( 505,
-                                        '0','',
-                                        'a' => q{Haggard, H. R. Only a dream.--Lewis, L. A. The meerschaum pipe.--Ellis, A. E. the life-buoy.--Jackson, T. G., Sir. The lady of Rosemount.--Gawsworth, J. How it happened.--Bryusov, V. In the mirror.--Burnett, J. "Calling Miss Marker."--Donovan, D. A night of horror.--Rolt, L. T. C. The shouting.--Birkin, C. The happy dancers.--Hodgson, W. H. The weed men. Cowles, F. Eyes for the blind.--Wakefield, H. R. Mr. Ash’s studio.--Haining, R. Montage of death. Allen, G. Pallinghurst Barrow.--Scott, E. Randalls round.--Visiak, E. H. The skeleton at the feast. Medusan madness.--Benson, A. C. Out of the sea. Gilchrist, R. M. Witch in-grain.--Munby, A. N. L. The Tudor chimney.--James, M. R. The experiment.} ) ;
+    my $basic_505_field = MARC::Field->new( 505,
+                                            '0','',
+                                            'a' => q{Haggard, H. R. Only a dream.--Lewis, L. A. The meerschaum pipe.--Ellis, A. E. the life-buoy.--Jackson, T. G., Sir. The lady of Rosemount.--Gawsworth, J. How it happened.--Bryusov, V. In the mirror.--Burnett, J. "Calling Miss Marker."--Donovan, D. A night of horror.--Rolt, L. T. C. The shouting.--Birkin, C. The happy dancers.--Hodgson, W. H. The weed men. Cowles, F. Eyes for the blind.--Wakefield, H. R. Mr. Ash’s studio.--Haining, R. Montage of death. Allen, G. Pallinghurst Barrow.--Scott, E. Randalls round.--Visiak, E. H. The skeleton at the feast. Medusan madness.--Benson, A. C. Out of the sea. Gilchrist, R. M. Witch in-grain.--Munby, A. N. L. The Tudor chimney.--James, M. R. The experiment.} ) ;
+
+    my @actual_work_hashes = marc2neo4j::parse_basic_contents( $basic_505_field ) ;
 
 # ugh, trimming periods could be an issue...put on to do later..
 # definitely need to consider adding something to the parsing process
@@ -157,8 +179,11 @@ my @expected_work_hashes = (
     { responsible => 'James, M. R.',
       title => 'The experiment.' }
 ) ;
+    
+    is_deeply( \@actual_work_hashes,
+               \@expected_work_hashes ) ;
 
-
+}
 #     Relevance: 	
 # 000 	01531cam a2200205 i 450
 # 001 	22018
@@ -210,7 +235,3 @@ my @expected_work_hashes = (
 # 994 	__ |a 02 |b UIU
 # 910 	__ |a MARS
 # Persistent link to this page: 	https://i-share.carli.illinois.edu/uiu/cgi-bin/Pwebrecon.cgi?DB=local&v4=1&BBRecID=2087598
-
-
-
-done_testing() ;

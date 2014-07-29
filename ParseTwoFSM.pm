@@ -6,6 +6,7 @@ package ParseTwoFSM ;
 use strict ;
 use warnings ;
 
+
 use Exporter;
 
 
@@ -103,13 +104,76 @@ $actions{ LAST }{ OTHER }
 $actions{ INITIALS }{ PERIOD } 
     = sub {
         my $char = shift ;
-        
+        $buffer .= $char ;
     }; 
-    
-$actions{ INITIALS }{ COMMA } = $actions{ INITIALS }{ PERIOD } ;
-$actions{ INITIALS }{ OTHER } = $actions{ INITIALS }{ PERIOD } ;
 
 
+$actions{ INITIALS }{ COMMA }
+    = sub {
+        #$initials .= $buffer ;
+        $buffer = '' ;
+        $state = 'PERSON_TITLE' ;
+    } ;
+
+$actions{ INITIALS }{ OTHER }
+    = sub {
+
+        my $char = shift ;
+
+        # doing a look up of the character before
+        # and if not space or period
+
+
+        # is the last character a . or space? (In which case,
+        # this is likely the first character in an initial, so keep going
+        #
+        # however, if it's not, we're already two characters into title
+        #
+        # might be more efficient to do
+        #   length($buffer) > 1 
+        #   && ( grep {substr( $buffer,-1,1)} (q{.}, q{ } ) )  ){
+
+        # need to test if no initials, suspect need to make it more complicated
+
+        # if( $buffer =~ /^([^\.]\.s?*.?\s$/) {
+        # regex approach was getting funky and weird
+        
+        if( length($buffer) == 0 ) {
+            $buffer .= $char ;
+        }
+        elsif(   substr($buffer, -1, 1 ) eq q{ }
+                 || substr($buffer, -1, 1 ) eq q{.} ) {
+
+            # ok, the string already in buffer is initials,
+            # but the character now MIGHT be a title,
+            $initials .= $buffer ;
+            # note, we are purposefully NOT appending here, this
+            # might be the start of the title
+            $buffer = $char;
+
+            $state = 'INITIALS' ;
+        }
+        else {
+
+            # the previous character was not a space OR a period
+            # and we'r taking care of commas already, so
+            # this means we're likely in a title, add to buffer, switch to title
+
+            $buffer .= $char ;
+            $state = 'RUNTOEND' ;
+        }
+    } ;
+
+
+$actions{ PERSON_TITLE }{ COMMA } = sub { } ;
+$actions{ PERSON_TITLE }{ PERIOD } = sub { } ;
+$actions{ PERSON_TITLE }{ OTHER } = sub { } ;
+
+$actions{ RUNTOEND }{ COMMA } = sub { } ;
+
+$actions{ RUNTOEND }{ PERIOD } = sub { } ;
+
+$actions{ RUNTOEND }{ OTHER } = sub {  } ;
 
 sub parse {
 
@@ -135,6 +199,8 @@ sub parse {
         }
     }
     print "LAST NAME: " . $last_name . "\n" ;
+    print "INITIALS: " . $initials . "\n" ;
+    print "TITLES: " . join(", ", @titles )  . "\n" ;
     
     my $name = join(q{ }, $person_title,
                     $initials,

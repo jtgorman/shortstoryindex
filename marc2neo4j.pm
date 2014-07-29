@@ -5,6 +5,12 @@ use warnings ;
 
 package marc2neo4j ;
 
+# ok, so this is just to try out the
+# new switch statement, see
+# parse_strings_content if we
+# need to refactor out due to complaints
+use v5.10.1;
+
 use File::Slurp ;
 
 use Log::Log4perl qw(get_logger :levels);
@@ -316,11 +322,14 @@ sub contains_toc_in_subfield_a {
     return 0 ;
 }
 
-sub parse_string_of_contents {
+
+# pattern 1: title / author -- [title / author ...].
+sub parse_pattern_one {
 
     my $contents_string = shift ;
-    
+
     my @works = () ;
+    
     # going to assume title / statment of responibility -- 
     my @subparts = split(/ ?-- ?/,
                          $contents_string,
@@ -329,13 +338,13 @@ sub parse_string_of_contents {
     foreach my $subpart (@subparts) {
         
         my ($title, $resp_part) = split(/\//, $subpart) ;
-
+        
         # do we really want to worry about this relatively rare
         # edge case where there is multiple authors for
         # one short story (and what if three? dealing with ,? )
 
         $resp_part =~ s/\.\s*$//; # remove trailing period
-
+        
         my @responsibles
             = map
               { trim ($_) }
@@ -347,6 +356,104 @@ sub parse_string_of_contents {
         });
     }
 
+    return @works ;
+}
+
+
+
+# pattern 2: last name, initials, titleAddress. title1. title2.
+sub parse_pattern_two {
+
+    my $contents_string = shift ;
+
+    my @works = () ;
+    
+    # going to assume title / statment of responibility -- 
+    my @subparts = split(/ ?-- ?/,
+                         $contents_string,
+                     ) ;
+
+    # for now, best way I can think of is a state machine....
+    # LAST_NAME
+    # INITIALS
+    # if ,  -> author's form of address
+    # if not an initial -> titles
+    # suppose we could even avoid the split...
+
+    # sigh, painful
+    
+    
+    foreach my $subpart (@subparts) {
+        
+        my ($title, $resp_part) = split(/\//, $subpart) ;
+        
+        # do we really want to worry about this relatively rare
+        # edge case where there is multiple authors for
+        # one short story (and what if three? dealing with ,? )
+
+        $resp_part =~ s/\.\s*$//; # remove trailing period
+        
+        my @responsibles
+            = map
+              { trim ($_) }
+              split( / and /, $resp_part );
+
+        push(@works,{
+            title => trim($title),
+            responsible  => \@responsibles,
+        });
+    }
+
+    return @works ;
+
+}
+
+
+# pulled out ot make it easier to do some statistics 
+sub determine_parse_pattern {
+    
+    my $contents_string = shift ;
+    if( $contents_string = /\\/ && /--/ ) {
+        #parse_pattern_one( $contents_string ) ;
+        return 1 ;
+    }
+    elsif ( $contents_string =~ tr/\.// > 3 ) {
+        return 2 ;
+    }
+    
+    return 0 ;
+ 
+}
+
+sub parse_string_of_contents {
+
+    my $contents_string = shift ;
+    
+    my @works = () ;
+
+
+    # note, it seems at least some records switch up to
+    # be author / title, but I can't think of a reasonable way...yet
+    # that I can filter those out...at some point am tempted
+    # to do a mix of manual and automated input....
+    
+    # need to look into some syntaxes/parsers in the long run
+    # rather than doing the hacks below
+
+    # also should run some statistics 
+    
+    # pattern 1: title / author -- [title / author ...].
+    # pattern 2: last name, initials, titleAddress. title1. title2.--last name
+
+    my $parse_pattern = determine_parse_pattern( $contents_string ) ;
+
+    # some meta-programming might be useful here,
+    # or hash of first-order function
+    for ( $parse_pattern ) {
+        when (1) { return parse_pattern_one ( $contents_string ) ; }
+        when (2) { return parse_pattern_two ( $contents_string ) ; } 
+    }
+    
     return @works ;
 
 }
