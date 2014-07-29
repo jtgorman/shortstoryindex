@@ -160,7 +160,7 @@ $actions{ INITIALS }{ OTHER }
             # this means we're likely in a title, add to buffer, switch to title
 
             $buffer .= $char ;
-            $state = 'RUNTOEND' ;
+            $state = 'TITLE' ;
         }
     } ;
 
@@ -175,7 +175,7 @@ $actions{ PERSON_TITLE }{ PERIOD }
     = sub {
         $person_title = $buffer ;
         $buffer = q{} ;
-        $state = 'RUNTOEND' ;
+        $state = 'TITLE' ;
     } ;
 
 $actions{ PERSON_TITLE }{ OTHER }
@@ -183,14 +183,43 @@ $actions{ PERSON_TITLE }{ OTHER }
         my $char = shift ;
         $buffer .= $char ;
 
-        print "PERSON_TITLE buffer is " . $ buffer . "\n" ;
     } ;
 
-$actions{ RUNTOEND }{ COMMA } = sub { } ;
+$actions{ RUNTOEND }{ COMMA } = sub {
 
-$actions{ RUNTOEND }{ PERIOD } = sub { } ;
+} ;
+$actions{ RUNTOEND }{ PERIOD } = sub {
 
-$actions{ RUNTOEND }{ OTHER } = sub {  } ;
+} ;
+$actions{ RUNTOEND }{ OTHER } = sub {
+
+} ;
+
+
+
+$actions{ TITLE }{ PERIOD }
+    = sub {
+        push(@titles,
+             $buffer ) ;
+
+        $buffer = q{} ;
+    } ;
+
+
+
+$actions{ TITLE }{ OTHER }
+    = sub {
+        my $char = shift ;
+        $buffer .= $char ;
+    } ;
+
+
+
+$actions{ TITLE }{ COMMA }
+    = sub {
+        my $char = shift ;
+        $buffer .= $char ;
+    } ;
 
 sub parse {
 
