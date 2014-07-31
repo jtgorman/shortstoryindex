@@ -110,7 +110,7 @@ $actions{ INITIALS }{ PERIOD }
 
 $actions{ INITIALS }{ COMMA }
     = sub {
-        #$initials .= $buffer ;
+        $initials .= $buffer ;
         $buffer = '' ;
         $state = 'PERSON_TITLE' ;
     } ;
@@ -199,11 +199,31 @@ $actions{ RUNTOEND }{ OTHER } = sub {
 
 $actions{ TITLE }{ PERIOD }
     = sub {
-        push(@titles,
-             $buffer ) ;
 
-        $buffer = q{} ;
-    } ;
+        # I'm making a decision here
+        # we have an ambiguity here:
+        # ...what if the period is NOT indicating another story
+        # what if it's part of an abbreviation  or similar
+        # (also, this could be a messed up form of address)
+        #
+        # for now, looking back on some common
+        # abbreviations like Dr. Mr. Mrs. and just appending
+        # to buffer if that's the cse...
+        # may need to check on casing....
+
+        # I know there's better way to do start of string OR space,
+        # but blanking 
+        # need to generate som emore test cases for these
+        if(   $buffer =~ / (dr|mr|mrs)$/i || $buffer =~ /^(dr|mr|mrs)$/i ) {
+            $buffer .= q{.} ;
+        }
+        else {
+            push(@titles,
+                 $buffer ) ;
+            
+            $buffer = q{} ;
+        }
+    };
 
 
 
@@ -234,7 +254,7 @@ sub parse {
         
         ($char, $rest_of_string)  = _read_char( $rest_of_string ) ; 
 
-        print "Char is $char \n" ;
+        #print "Char is $char \n" ;
         if (   $char eq q{.} ) {
             $actions{ $state }{ PERIOD }->( $char ) ;
         }
@@ -244,16 +264,25 @@ sub parse {
             $actions{ $state }{ OTHER }->( $char ) ;
         }
     }
-    print "LAST NAME: " . $last_name . "\n" ;
-    print "INITIALS: " . $initials . "\n" ;
-    print "TITLE/SALUTATION: " . $person_title . "\n" ;
-    print "TITLES: " . join(", ", @titles )  . "\n" ;
+#    print "LAST NAME: " . $last_name . "\n" ;
+#    print "INITIALS: " . $initials . "\n" ;
+#    print "TITLE/SALUTATION: " . $person_title . "\n" ;
+#    print "TITLES: " . join(", ", @titles )  . "\n" ;
     
     my $name = join(q{ }, $person_title,
                     $initials,
                     $last_name ) ;
-    
-    my @works = map { { responsible => [$name], title => $_ } } @titles ; 
+
+    # if improved whitespace parsing of parser could
+    # get rid of format..
+    my @works
+        = map {
+            { responsible => [ _format($name) ],
+              title => _format($_)
+          }
+        }
+        @titles ; 
+
     return @works ;
 }
 
@@ -286,4 +315,23 @@ sub init {
 
     $buffer = '' ;
 }
+sub _format {
+
+    my $string = shift ;
+
+    # trim off whitespace at ends
+    $string =~ s/^\s*// ;
+    $string =~ s/\s*$// ;
+
+    # reduce runs of whitespace into one space made from cruddy parsing
+    # (but if we improve too much...maybe start having issues with
+    # wonky whitespace in input...)
+
+    $string =~ s/(\s)\s+/$1/g ;
+
+    
+    return $string ;
+}
+
+
 1;

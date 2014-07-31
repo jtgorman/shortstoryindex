@@ -9,9 +9,10 @@ package marc2neo4j ;
 # new switch statement, see
 # parse_strings_content if we
 # need to refactor out due to complaints
-use v5.10.1;
 
 use File::Slurp ;
+
+use ParseTwoFSM qw( parse ) ;
 
 use Log::Log4perl qw(get_logger :levels);
 
@@ -367,45 +368,11 @@ sub parse_pattern_two {
     my $contents_string = shift ;
 
     my @works = () ;
-    
-    # going to assume title / statment of responibility -- 
-    my @subparts = split(/ ?-- ?/,
-                         $contents_string,
-                     ) ;
-
-    # for now, best way I can think of is a state machine....
-    # LAST_NAME
-    # INITIALS
-    # if ,  -> author's form of address
-    # if not an initial -> titles
-    # suppose we could even avoid the split...
-
-    # sigh, painful
-    
-    
-    foreach my $subpart (@subparts) {
-        
-        my ($title, $resp_part) = split(/\//, $subpart) ;
-        
-        # do we really want to worry about this relatively rare
-        # edge case where there is multiple authors for
-        # one short story (and what if three? dealing with ,? )
-
-        $resp_part =~ s/\.\s*$//; # remove trailing period
-        
-        my @responsibles
-            = map
-              { trim ($_) }
-              split( / and /, $resp_part );
-
-        push(@works,{
-            title => trim($title),
-            responsible  => \@responsibles,
-        });
+    foreach my $work_string (split(/--/, $contents_string ) ) {
+        push( @works,
+              ParseTwoFSM::parse( $work_string ), ) ;
     }
-
     return @works ;
-
 }
 
 
@@ -413,11 +380,13 @@ sub parse_pattern_two {
 sub determine_parse_pattern {
     
     my $contents_string = shift ;
-    if( $contents_string = /\\/ && /--/ ) {
-        #parse_pattern_one( $contents_string ) ;
+
+    if(   $contents_string =~ /\//
+       && $contents_string =~  /--/ ) {
         return 1 ;
     }
-    elsif ( $contents_string =~ tr/\.// > 3 ) {
+    elsif (   $contents_string =~ /--/
+           && $contents_string =~ tr/\.// > 3 ) {
         return 2 ;
     }
     
@@ -447,12 +416,16 @@ sub parse_string_of_contents {
 
     my $parse_pattern = determine_parse_pattern( $contents_string ) ;
 
+    #print "parse pattern for $contents_string is $parse_pattern\n";
     # some meta-programming might be useful here,
     # or hash of first-order function
-    for ( $parse_pattern ) {
-        when (1) { return parse_pattern_one ( $contents_string ) ; }
-        when (2) { return parse_pattern_two ( $contents_string ) ; } 
+    if ( $parse_pattern == 1) {
+        return parse_pattern_one ( $contents_string ) ;
     }
+    elsif ( $parse_pattern == 2 ) {
+        return parse_pattern_two ( $contents_string ) ;
+    }
+    
     
     return @works ;
 
@@ -470,7 +443,7 @@ sub parse_basic_contents {
 sub parse_enhanced_contents {
 
     my $contents_field = shift ;
-
+    
     # probably need something a bit more intelligent or
     # a better parser, but
     # for now going to assume either a $t or a $t $r pattern
