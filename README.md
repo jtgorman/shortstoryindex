@@ -91,3 +91,23 @@ Better handling of "extended" 505 notes
 Better handling of author information, or reconsider how to handle that.
 
 Keep a lookup of bib ids or other identifiers so records don't need to be in a sorted order.
+
+Add subject headings 6xx to the filter pass to aid in picking out records.
+
+
+Brainstorming / pondering
+===============
+
+Consider making some sort of extreme normalizing and then hashing of title & author info as a type of unique id as a default.
+
+Might want namespaces of record sources to add to ids for tracking this stuff, combined with some occasional updates.
+
+Web interface for joining/separating and editing nodes, with identifers/mapping in background. (Pulling information in from various 
+
+n-curses type terminal for display and editing likely TOC mistakes?
+
+Some machine analysis of randomly selected records that are used for rules.
+
+Do some google searches or apis or other searches to try to determine likelihood
+of some of the decisions on parsing out what is a title, what is a collection
+of short stories, possible alternative names for authros.
