@@ -19,26 +19,6 @@ our @EXPORT_OK = qw( parse );
 
 # weird mental note, wonder if easier to parse if reversed string?
 
-
-# weirdness happening w/ use strict & the constants...
-# for now will try to fix some other stuff and come back
-# BEGIN {
-#     # special characters
-#     use constant {
-#         # Inputs
-#         PERIOD => '.',
-#         COMMA  => ',',
-#         OTHER  => 2,
-        
-#         #States
-#         LAST => 1,
-#         INITIALS => 2,
-#         TITLE => 3,
-#     } ;
-# }
-
-
-
 #use Marpa::XS ;
 
 # Our finite state machine needs to work like this....
@@ -112,7 +92,7 @@ $actions{ INITIALS }{ COMMA }
     = sub {
         $initials .= $buffer ;
         $buffer = '' ;
-        $state = 'PERSON_TITLE' ;
+        $state = 'HONORIFICS' ;
     } ;
 
 $actions{ INITIALS }{ OTHER }
@@ -165,20 +145,25 @@ $actions{ INITIALS }{ OTHER }
     } ;
 
 
-$actions{ PERSON_TITLE }{ COMMA }
+$actions{ HONORIFICS }{ COMMA }
     = sub {
         # should throw an error
         $state = 'RUNTOEND' ;
     } ;
 
-$actions{ PERSON_TITLE }{ PERIOD }
+$actions{ HONORIFICS }{ PERIOD }
     = sub {
         $person_title = $buffer ;
+
+        unless ($person_title =~ 'Sir') {
+            $person_title .= q{.} ;
+        }
+        
         $buffer = q{} ;
         $state = 'TITLE' ;
     } ;
 
-$actions{ PERSON_TITLE }{ OTHER }
+$actions{ HONORIFICS }{ OTHER }
     = sub {
         my $char = shift ;
         $buffer .= $char ;

@@ -94,6 +94,10 @@ Keep a lookup of bib ids or other identifiers so records don't need to be in a s
 
 Add subject headings 6xx to the filter pass to aid in picking out records.
 
+Right now the parser will not warn if it has difficulty, maybe some way to warn. Also don't know if it logs if it encounters a pattern it doesn't know.
+
+Need to pull out more records to test with.
+
 
 Brainstorming / pondering
 ===============

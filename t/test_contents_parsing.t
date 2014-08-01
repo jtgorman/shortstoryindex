@@ -193,7 +193,30 @@ my @expected_work_hashes = (
     is_deeply( \@actual_work_hashes,
                \@expected_work_hashes ) ;
 
-}
+
+    ## an array of tests for the naming convention stuff...
+
+    my @honorific_tests = (
+        {
+            input =>  'Smith, J., Dr. A puzzling crime.'  ,
+            expected => [{ responsible => ['Dr. J. Smith'],
+                          title => 'A puzzling crime',
+                      }],
+        },
+        {
+            input => 'Smith, J. Dr. No finds love.' , 
+            expected => [{ responsible => [ 'J. Smith' ],
+                           title => 'Dr. No finds love'
+                      }]
+        },
+    );
+
+    foreach my $honorific_test (@honorific_tests) {
+
+        is_deeply(  [marc2neo4j::parse_pattern_two( $honorific_test->{input} ) ] ,
+                    $honorific_test->{ expected } ); 
+    }
+}    
 #     Relevance: 	
 # 000 	01531cam a2200205 i 450
 # 001 	22018
@@ -244,4 +267,4 @@ my @expected_work_hashes = (
 # 910 	__ |a rcp3254
 # 994 	__ |a 02 |b UIU
 # 910 	__ |a MARS
-# Persistent link to this page: 	https://i-share.carli.illinois.edu/uiu/cgi-bin/Pwebrecon.cgi?DB=local&v4=1&BBRecID=2087598
+    # Persistent link to this page: 	https://i-share.carli.illinois.edu/uiu/cgi-bin/Pwebrecon.cgi?DB=local&v4=1&BBRecID=2087598
