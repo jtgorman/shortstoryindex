@@ -199,7 +199,7 @@ $actions{ TITLE }{ PERIOD }
         # I know there's better way to do start of string OR space,
         # but blanking 
         # need to generate som emore test cases for these
-        if(   $buffer =~ / (dr|mr|mrs)$/i || $buffer =~ /^(dr|mr|mrs)$/i ) {
+        if(   $buffer =~ / (dr|mr|mrs|st)$/i || $buffer =~ /^(dr|mr|mrs|st)$/i ) {
             $buffer .= q{.} ;
         }
         else {

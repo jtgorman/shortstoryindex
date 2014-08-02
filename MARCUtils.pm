@@ -82,6 +82,12 @@ sub get_bib_id {
 
     my $record = shift ;
 
+    #ok, so apparently, sometimes a record that's really
+    # messed up will cause a partial record to get loaded...
+
+    unless( defined( $record ) &&  $record->field('001') ) {
+        die "NO 001 FOUND, most likely we're in the middle of a managled record" ;
+    }
     my $field_001 = $record->field('001')->data() ;
 
     $field_001 =~ s/^\s*// ;

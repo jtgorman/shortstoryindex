@@ -146,16 +146,73 @@ sub run {
     
     
     # bad, I know
-  RECORD: while ( my $marc = $batch->next() ) {
+
+    # bad looping, suppose I could read in once
+
+    
+  RECORD: while ( 1 ) {
+
+        use Data::Dumper ;
+                    
+        $logger->debug("Start to look at the record") ;
+
+        my $marc ;
+
+        eval {
+            $marc = $batch->next() ;
+        } ;
+
+        if( $@ =~ m|utf8 "\\x.." does not map to Unicode at /usr/lib/perl/5.14/Encode.pm line 174\.| ) {
+
+            # hmmm, interesting problem.
+            # catching the eval here seems to confuse MARC::Batch
+            # and it sees several different recorsd
+            # so is there a way to know where to end?
+            #
+            # skp to the next 1d?....
+            # best way to fix would be to go into MARC::Record
+            
+            $logger->warn("SKIPPING due to bad unicode characters" ) ;
+            next RECORD ;
+        }
+        elsif( defined( $@ ) && $@ ne q{}) {
+            $logger->warn("some other error message $@") ;
+        }
+        
         
         my $warnings = $batch->warnings() ;
         if( defined($warnings) && $warnings > 0 ) {
             $logger->warn( "SKIPPING record due to error in MARC " . $batch->warnings() ) ;
             next RECORD ;
         }
-        
-        
-        my $id = get_bib_id( $marc ) ;
+
+
+        # position here is important, seemingly..
+                unless( defined( $marc ) ) {
+            # if I'm reading stuff right, $marc
+            # will only be undefined when it's really the end
+            # of the string
+            last RECORD ;
+        } ;
+
+                 
+        my $id ;
+
+        eval {
+            $id = get_bib_id( $marc )
+        };
+
+
+
+
+
+        if(substr( $@, 0, 12) eq 'NO 001 FOUND') {
+            $logger->warn("SKIPPING record, most likely a manged input following a bad char throwing off the MARC::Batch processor.") ;
+            next RECORD ;
+        }
+        elsif ( defined( $@ ) && $@ ne '') {
+            $logger->warn(substr( $@, 0, 12) . " | error occurred" ) ;
+        }
         $logger->debug("importing " . $id ) ;
         
         if( $skip_records{ $id } ) {
@@ -595,7 +652,7 @@ sub non_story_content {
 
     $title = lc( $title ) ;
     
-    if(   $title =~ /tpverso/
+    if(   $title =~ /verso/
        || $title eq 'introduction'
        || $title eq 'cover' 
        || $title eq 'forward' ) {

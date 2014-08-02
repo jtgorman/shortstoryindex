@@ -98,6 +98,7 @@ Right now the parser will not warn if it has difficulty, maybe some way to warn.
 
 Need to pull out more records to test with.
 
+Fix MARC::Record upstream (if it needs fixing) and remove workarounds w/ patch 
 
 Brainstorming / pondering
 ===============
