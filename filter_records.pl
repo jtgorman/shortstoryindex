@@ -158,7 +158,7 @@ RECORD: while ( my $marc = $batch->next() ) {
     
     
     # high likelyhood (or at least good enough) for 100%
-    # 655 contains 'short stories',  (do we want to deal with poems and other stuff?)
+    # 650  or 655 contains 'short stories',  (do we want to deal with poems and other stuff?)
     # 008 33  
     # from Shawne D. Miksa, Ph.D.
     # What about 008/33 Literary form = 'e' (essays) and
@@ -166,7 +166,7 @@ RECORD: while ( my $marc = $batch->next() ) {
 
 # so let's just get a set to play around w/
 
-if( reject_record( $marc ) ) {
+    if( reject_record( $marc ) ) {
         $record_pos++ ;
         next RECORD ;
     }
@@ -177,11 +177,19 @@ if( reject_record( $marc ) ) {
        
     }
     print "maybe short stories?\n" ;
+   
     print $marc->title() ."\n" ;
     print $marc->author() ."\n" ;
-    my @fields_500s = $marc->field('50.') ;
-    foreach my $field (@fields_500s) {
-        print $field->as_formatted() . "\n" ;
+
+     my @fields_notes = $marc->field('50.') ;
+    foreach my $note_field (@fields_notes) {
+         print $note_field->as_formatted() . "\n" ;
+     }
+
+  #650, 655
+    my @fields_subjects = $marc->field('6..') ;
+    foreach my $subject_field (@fields_subjects) {
+        print $subject_field->as_formatted() . "\n" ;
     }
     print "(y)es/(n)o/(s)top \n" ;
     my $key ;
@@ -316,13 +324,16 @@ sub automatic_accept {
         
     }
     my @genre_headings = $marc->field('655') ;
+    push( @genre_headings,
+          $marc->field('650') );
+    
     foreach my $genre_heading (@genre_headings) {
       
         # should be checking appropriate subfields...doing quick and dirty
         my $formatted_genre_heading = $genre_heading->as_formatted() ; 
-        if ( $formatted_genre_heading=~ /short stories/i
-                 || $formatted_genre_heading  =~ /short story/i) {
-            $logger->info("ACCEPT $id Spotted 655 w/ short stor(y|ies)") ;
+        if ( $formatted_genre_heading=~ /stories/i
+                 || $formatted_genre_heading  =~ /tales/i) {
+            $logger->info("ACCEPT $id Spotted 655 or 650 w/ stories or tales") ;
             return 1 ;
         }
     }
