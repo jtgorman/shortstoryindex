@@ -52,7 +52,17 @@ if( $pull_list ne '' ) {
 }
 
 
+open my $accept_reject_record, '>>', "accept_reject.csv" or die "Couldn't open accept_reject.csv" ;
 
+
+# 1 - accepted automatically
+# 2 - denied auotmatically
+# 3 - manually accepted
+# 4 - manually rejected
+#
+# for now since we want to record this 
+# to play with training this value will NOT 
+# be reflected in pull list
 
 # so rough flow
 # go through a set of rules
@@ -168,11 +178,13 @@ RECORD: while ( my $marc = $batch->next() ) {
 
     if( reject_record( $marc ) ) {
         $record_pos++ ;
+	print $accept_reject_record $marc->field('001')->data() . ",0\n" ;
         next RECORD ;
     }
     if( automatic_accept( $marc ) ) {
         print $short_story_records_h $marc->as_usmarc() ;
         $record_pos++;
+	print $accept_reject_record $marc->field('001')->data() . ",1\n" ;
         next RECORD ;
        
     }
@@ -205,10 +217,12 @@ RECORD: while ( my $marc = $batch->next() ) {
     } elsif (lc($key) eq 'y') {
         $logger->info("ACCEPTED $id putting in file by manual input") ;
         print $short_story_records_h $marc->as_usmarc() ;
+	print $accept_reject_record $marc->field('001')->data() . ",3\n";
     } elsif (lc($key) eq 's') {
         clean_up( $id ) ;
     } elsif (lc($key) eq 'n') {
         $logger->info("REJECT $id excluding by manual input") ;
+	print $accept_reject_record $marc->field('001')->data() . ",4\n";
     }
 
     $record_pos++ ;
