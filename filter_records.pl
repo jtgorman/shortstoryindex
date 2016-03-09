@@ -29,10 +29,13 @@ use Getopt::Long ;
 
 my $pull_list = '';
 my %pull_bib_ids ;
+
 my $pull_mode = 0 ;
+my $verbose = 0 ;
 
 GetOptions (
     "pull-file=s" => \$pull_list, # string
+    "verbose" => \$verbose, # more verbose than normal mode
 ) or die( help_message() );
 
 if( $pull_list ne '' ) {
@@ -113,11 +116,11 @@ my $total_records =
 
 my $batch = MARC::Batch->new( 'USMARC', @marc_files );
 
-my $last_record_id_filepath = 'last_record_id' ;
+my $last_record_place_filepath = 'last_record_place' ;
 
-my $last_record_id = -1 ;
-if( -e $last_record_id_filepath ) {
-    $last_record_id = read_file( $last_record_id_filepath ) ;
+my $last_record_place = -1 ;
+if( -e $last_record_place_filepath ) {
+    $last_record_place = read_file( $last_record_place_filepath ) ;
 }
     
 
@@ -128,14 +131,26 @@ binmode $short_story_records_h ;
 # need to do a report on how many records...
 
 my $id = -1 ;
-my $record_pos = 1 ;
+my $record_pos = 0 ;
 
 #while ( my $marc = $batch->next(\&marc_filter) ) {
 # going to remove the filter temporarily, while we try to get a better
 # system for picking records
 RECORD: while ( my $marc = $batch->next() ) {
 
-    
+    $record_pos++ ;
+
+
+    if( $verbose ) {
+	print "At record entry $record_pos\n";
+    }
+
+    # need ot make sure not one off error
+    if($record_pos < $last_record_place) {
+	next RECORD ;
+    } 
+
+
     $id = get_id( $marc ) ;
     my $percent_completed = ($record_pos / $total_records) * 100 ;
     $logger->debug(" processing $record_pos of $total_records "
@@ -145,12 +160,10 @@ RECORD: while ( my $marc = $batch->next() ) {
             $logger->info("ACCEPT Pull mode, $id was in pull list") ; 
             print $short_story_records_h $marc->as_usmarc() ;
 
-            $record_pos++ ;
             next RECORD ;
         }
     elsif( %pull_bib_ids ) {
 
-        $record_pos++ ;
         next RECORD ;            
     }
 
@@ -177,13 +190,11 @@ RECORD: while ( my $marc = $batch->next() ) {
 # so let's just get a set to play around w/
 
     if( reject_record( $marc ) ) {
-        $record_pos++ ;
 	print $accept_reject_record $marc->field('001')->data() . ",0\n" ;
         next RECORD ;
     }
     if( automatic_accept( $marc ) ) {
         print $short_story_records_h $marc->as_usmarc() ;
-        $record_pos++;
 	print $accept_reject_record $marc->field('001')->data() . ",1\n" ;
         next RECORD ;
        
@@ -219,16 +230,16 @@ RECORD: while ( my $marc = $batch->next() ) {
         print $short_story_records_h $marc->as_usmarc() ;
 	print $accept_reject_record $marc->field('001')->data() . ",3\n";
     } elsif (lc($key) eq 's') {
-        clean_up( $id ) ;
+        clean_up( $id, $record_pos ) ;
     } elsif (lc($key) eq 'n') {
         $logger->info("REJECT $id excluding by manual input") ;
 	print $accept_reject_record $marc->field('001')->data() . ",4\n";
     }
 
-    $record_pos++ ;
 } # END OF RECORD loop
     #print "no immediate qualifiers for short stories\n" ;
 #clean_up( $id ) ;
+# and stories | and short stories in title probably should be automatic inclusion
 
 #
 # Check for possible reasons to skip/reject this record
@@ -236,17 +247,8 @@ sub reject_record {
     my $marc = shift ;
     my $id = get_id( $marc ) ;
     
-
-    # For this particular batch that's
-    # already in order (LoC from Scriblio)
-    # probably could have database of lookups
-    # in memory for an unordered set
-    if(  $id < $last_record_id ) {
-        
-        return 1 ;
-    }
-          if(    defined($marc->field('008')
-        && length($marc->field('008')->data()) >= 37 ) ) {
+    if(   defined($marc->field('008')
+       && length($marc->field('008')->data()) >= 37 ) ) {
         # due to weirdness...
         my $lang_code = substr($marc->field('008')->data(),35,3)  ; 
         if( $lang_code ne 'eng' && $lang_code ne ' 'x3) {
@@ -364,12 +366,15 @@ sub automatic_accept {
 sub clean_up {
 
     my $id = shift ;
-    $logger->debug("Cleaning up, passed in $id") ;
+    my $record_pos = shift ;
+
+    
+    $logger->debug("Cleaning up, passed in $id, position $record_pos") ;
 
     # seems a little fiddly, may need to refactor if we end up getting
     # more "modes" (maybe just have a save progress/not save progress
-    if( defined($id) && !$pull_mode ) {
-        write_file( $last_record_id_filepath, $id ) ;
+    if( !$pull_mode ) {
+        write_file( $last_record_place_filepath, $record_pos ) ;
     }
     
     close $short_story_records_h ;
@@ -417,5 +422,5 @@ EOM
 END {
 
     
-    clean_up( $id ) ;
+    clean_up( $id, $record_pos ) ;
 }
