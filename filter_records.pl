@@ -58,6 +58,7 @@ if( $pull_list ne '' ) {
 open my $accept_reject_record_fh, '>>', "accept_reject.csv" or die "Couldn't open accept_reject.csv" ;
 
 
+
 # 1 - accepted automatically
 my $AUTO_ACCEPTED = 1 ;
 my $AUTO_DENIED   = 2 ;
@@ -131,7 +132,7 @@ if( -e $last_record_place_filepath ) {
 
 # this is pretty space-heavy
 open my $auto_accepted_records_fh, '>>', 'auto_accepted.marc' or die "Couldn't open auto_accepted.marc" ;
-#open my $maybe_records_h, '>>', 'maybe.marc' or die "Couldn't open maybe.marc" ;
+open my $maybe_records_fh, '>>', 'maybe.marc' or die "Couldn't open maybe.marc" ;
 
 binmode $auto_accepted_records_fh ;
 
@@ -212,8 +213,10 @@ RECORD: while ( my $marc = $batch->next() ) {
        
     }
     # TODO: pull out to other script 
-    review_record( $marc ) ;
-
+    #review_record( $marc ) ;
+    
+    print $maybe_records_fh $marc->as_usmarc() ;
+    #Can't automatically classify, let's mark for review
 
 } # END OF RECORD loop
  ;    #print "no immediate qualifiers for short stories\n" ;

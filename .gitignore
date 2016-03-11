@@ -15,4 +15,8 @@
 #####
 data
 
+#generated marc files
 short_story_records.marc
+auto_accepted.marc
+maybe.marc
+
