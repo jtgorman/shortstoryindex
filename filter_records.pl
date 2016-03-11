@@ -55,10 +55,15 @@ if( $pull_list ne '' ) {
 }
 
 
-open my $accept_reject_record, '>>', "accept_reject.csv" or die "Couldn't open accept_reject.csv" ;
+open my $accept_reject_record_fh, '>>', "accept_reject.csv" or die "Couldn't open accept_reject.csv" ;
 
 
 # 1 - accepted automatically
+my $AUTO_ACCEPTED = 1 ;
+my $AUTO_DENIED   = 2 ;
+my $MANUALLY_ACCEPTED = 3 ;
+my $MANUALLY_DENIED = 4 ;
+
 # 2 - denied auotmatically
 # 3 - manually accepted
 # 4 - manually rejected
@@ -124,9 +129,11 @@ if( -e $last_record_place_filepath ) {
 }
     
 
-open my $short_story_records_h, '>>', 'short_story_records.marc' or die "Couldn't open short_story_records.marc" ;
+# this is pretty space-heavy
+open my $auto_accepted_records_fh, '>>', 'auto_accepted.marc' or die "Couldn't open auto_accepted.marc" ;
+#open my $maybe_records_h, '>>', 'maybe.marc' or die "Couldn't open maybe.marc" ;
 
-binmode $short_story_records_h ;
+binmode $auto_accepted_records_fh ;
 
 # need to do a report on how many records...
 
@@ -158,7 +165,7 @@ RECORD: while ( my $marc = $batch->next() ) {
 
     if( %pull_bib_ids && defined($pull_bib_ids{ $id } ) ) {
             $logger->info("ACCEPT Pull mode, $id was in pull list") ; 
-            print $short_story_records_h $marc->as_usmarc() ;
+            print $auto_accepted_records_fh $marc->as_usmarc() ;
 
             next RECORD ;
         }
@@ -190,16 +197,45 @@ RECORD: while ( my $marc = $batch->next() ) {
 # so let's just get a set to play around w/
 
     if( reject_record( $marc ) ) {
-	print $accept_reject_record $marc->field('001')->data() . ",0\n" ;
+	record_accept_reject( $accept_reject_record_fh, 
+			      $marc, 
+			      $AUTO_DENIED ) ;
+
         next RECORD ;
     }
     if( automatic_accept( $marc ) ) {
-        print $short_story_records_h $marc->as_usmarc() ;
-	print $accept_reject_record $marc->field('001')->data() . ",1\n" ;
+        print $auto_accepted_records_fh $marc->as_usmarc() ;
+	record_accept_reject( $accept_reject_record_fh,
+			      $marc,
+			      $AUTO_ACCEPTED ) ;
         next RECORD ;
        
     }
-    print "maybe short stories?\n" ;
+    # TODO: pull out to other script 
+    review_record( $marc ) ;
+
+
+} # END OF RECORD loop
+ ;    #print "no immediate qualifiers for short stories\n" ;
+#clean_up( $id ) ;
+# and stories | and short stories in title probably should be automatic inclusion
+
+sub record_accept_reject {
+    my $fh = shift ;
+    my $marc = shift ;
+    my $status = shift ;
+
+    print $fh $marc->field('001')->data() . ",${status}\n" ;
+}
+
+
+sub review_record {
+    my $marc = shift ;
+
+    print "\n\nmaybe short stories?\n" ;
+
+
+
    
     print $marc->title() ."\n" ;
     print $marc->author() ."\n" ;
@@ -227,19 +263,23 @@ RECORD: while ( my $marc = $batch->next() ) {
         redo RECORD ;
     } elsif (lc($key) eq 'y') {
         $logger->info("ACCEPTED $id putting in file by manual input") ;
-        print $short_story_records_h $marc->as_usmarc() ;
-	print $accept_reject_record $marc->field('001')->data() . ",3\n";
+        print $auto_accepted_records_fh $marc->as_usmarc() ;
+	record_accept_reject( $accept_reject_record_fh,
+			      $marc,
+			      $MANUALLY_ACCEPTED ) ;
+
     } elsif (lc($key) eq 's') {
         clean_up( $id, $record_pos ) ;
     } elsif (lc($key) eq 'n') {
         $logger->info("REJECT $id excluding by manual input") ;
-	print $accept_reject_record $marc->field('001')->data() . ",4\n";
+	record_accept_reject( $accept_reject_record_fh,
+			      $marc,
+			      $MANUALLY_DENIED ) ;
+
     }
 
-} # END OF RECORD loop
-    #print "no immediate qualifiers for short stories\n" ;
-#clean_up( $id ) ;
-# and stories | and short stories in title probably should be automatic inclusion
+}
+
 
 #
 # Check for possible reasons to skip/reject this record
@@ -379,7 +419,7 @@ sub clean_up {
 	unlink $last_record_place_filepath or die "Can't remove last_record_place_filepath";
     }
     
-    close $short_story_records_h ;
+    close $auto_accepted_records_fh ;
     ReadMode(0) ;
     exit ;
 
