@@ -107,7 +107,7 @@ if(@marc_files == 0) {
     die "You didn't supply any files to be procssed \n " ;
 }
 
-my $total_records =
+our $total_records =
     sum(
         map
             { number_of_records( $_ ) }
@@ -116,7 +116,7 @@ my $total_records =
 
 my $batch = MARC::Batch->new( 'USMARC', @marc_files );
 
-my $last_record_place_filepath = 'last_record_place' ;
+my $last_record_place_filepath =  'last_record_place' ;
 
 my $last_record_place = -1 ;
 if( -e $last_record_place_filepath ) {
@@ -368,13 +368,15 @@ sub clean_up {
     my $id = shift ;
     my $record_pos = shift ;
 
-    
     $logger->debug("Cleaning up, passed in $id, position $record_pos") ;
 
     # seems a little fiddly, may need to refactor if we end up getting
     # more "modes" (maybe just have a save progress/not save progress
-    if( !$pull_mode ) {
+    if( $record_pos != $total_records && !$pull_mode ) {
         write_file( $last_record_place_filepath, $record_pos ) ;
+    }
+    elsif ( $record_pos == $total_records && -e $last_record_place_filepath && !$pull_mode) {
+	unlink $last_record_place_filepath or die "Can't remove last_record_place_filepath";
     }
     
     close $short_story_records_h ;
