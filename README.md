@@ -30,6 +30,15 @@ Right now I'm using this against the Internet Archives Scriblio colleciton, see 
 
 I'm more concerned with higher precision than necessarily great recall, I mostly want to gather a pretty good corpus of material for pushing into neo4j.
 
+==Dependencies==
+
+Term::ReadKey
+MARC::Batch
+File::Slurp
+Log::Log4perl
+
+
+
 
 marc2neo4j.pm
 ===============
